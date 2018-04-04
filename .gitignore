@@ -1,2 +1,6 @@
 .bitrise*
 .gows.user.yml
+
+testing/\.DS_Store
+
+\.DS_Store
