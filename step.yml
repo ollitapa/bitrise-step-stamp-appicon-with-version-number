@@ -46,12 +46,8 @@ run_if: true
 
 deps:
   brew:
-  - name: git
-  - name: wget
   - name: imagemagick
   apt_get:
-  - name: git
-  - name: wget
   - name: imagemagick
 
 
