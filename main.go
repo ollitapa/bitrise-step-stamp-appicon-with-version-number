@@ -15,9 +15,13 @@ func main() {
 	iconPath := os.Getenv("stamp_path_to_icons")
 	version := os.Getenv("stamp_version")
 	buildNumber := os.Getenv("stamp_build_number")
+	fgColor := os.Getenv("foreground_color")
+	bgColor := os.Getenv("background_color")
 
 	fmt.Println("Version number to stamp:", version)
 	fmt.Println("Build number to stamp:", buildNumber)
+	fmt.Println("Foreground color is:", fgColor)
+	fmt.Println("Background color is:", bgColor)
 
 	fmt.Println("Finding icons from directory:", iconPath)
 
@@ -45,8 +49,11 @@ func main() {
 
 		dims := strings.Split(string(dimsOut), ",")
 
-		width, _ := strconv.Atoi(dims[0])
-		height, _ := strconv.Atoi(dims[1])
+		width, err1 := strconv.Atoi(dims[0])
+		height, err2 := strconv.Atoi(dims[1])
+		if err1 != nil && err2 != nil {
+			os.Exit(1)
+		}
 
 		bannerH := int(math.Floor(float64(height) * 0.3))
 		bannerDims := strconv.Itoa(width) + "x" + strconv.Itoa(bannerH)
@@ -54,8 +61,8 @@ func main() {
 		bannerCaption := "- " + version + "(" + buildNumber + ")" + " -"
 
 		error := exec.Command("convert",
-			"-background", "'#0008'",
-			"-fill", "white",
+			"-background", bgColor,
+			"-fill", fgColor,
 			"-gravity", "center",
 			"-size", bannerDims,
 			"caption:"+bannerCaption,

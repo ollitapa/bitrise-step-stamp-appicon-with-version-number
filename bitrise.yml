@@ -15,6 +15,9 @@ app:
 workflows:
   test:
     steps:
+    - go-list:
+    - errcheck:
+    - go-test:
     - change-workdir:
         title: Switch working dir to test / testing dir
         description: |-
@@ -35,7 +38,9 @@ workflows:
           file if you would not specify another value.
         run_if: true
         inputs:
-        - example_step_input: Example Step Input's value
+        - stamp_path_to_icons: "./AppIcon"
+        - stamp_version: "1.2"
+        - stamp_build_number: "123"
     - script:
         inputs:
         - content: |
