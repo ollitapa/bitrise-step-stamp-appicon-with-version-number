@@ -1,5 +1,8 @@
 # Stamp AppIcon with version number
 
+[![Build Status](https://app.bitrise.io/app/58d908aff235ad0e/status.svg?token=kYMD0heCgwGx-IMzv4rbFw&branch=master)](https://app.bitrise.io/app/58d908aff235ad0e) 
+[![GitHub](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/ollitapa/bitrise-step-stamp-appicon-with-version-number/blob/master/LICENSE)
+
 Stamps version "version(build number)" to the bottom of the icon.
 
 
