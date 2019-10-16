@@ -80,7 +80,7 @@ inputs:
       title: "Build number to stamp on the icon"
       summary: Build number to stamp on the icon
       description: |
-        Build number to stamp on the icon. Defaults to BITRISE_BUILD_NUMBER
+        Build number to stamp on the icon. Defaults to `BITRISE_BUILD_NUMBER`
       is_expand: true
       is_required: true
       value_options: []
