@@ -60,7 +60,7 @@ func main() {
 
 		bannerCaption := "- " + version + "(" + buildNumber + ")" + " -"
 
-		error := exec.Command("convert",
+		imgOutString, error := exec.Command("convert",
 			"-background", bgColor,
 			"-fill", fgColor,
 			"-gravity", "center",
@@ -68,8 +68,10 @@ func main() {
 			"caption:"+bannerCaption,
 			f, "+swap",
 			"-gravity", "south",
-			"-composite", f).Run()
+			"-composite", f).CombinedOutput()
 		if error != nil {
+			fmt.Println(string(imgOutString))
+			fmt.Println(error)
 			fmt.Println("ImageMagick failed!")
 			os.Exit(1)
 		}
