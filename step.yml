@@ -31,6 +31,7 @@ host_os_tags:
 #
 project_type_tags:
   - ios
+  - android
 
 
 # Type tags are used for categorizing steps, for easier step discovery in Step Libraries.
@@ -47,8 +48,10 @@ run_if: true
 deps:
   brew:
   - name: imagemagick
+  - name: ghostscript
   apt_get:
   - name: imagemagick
+  - name: ghostscript
 
 
 toolkit:
