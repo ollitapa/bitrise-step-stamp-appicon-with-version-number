@@ -7,7 +7,7 @@ app:
   - stamp_version: "0.1"
   - stamp_build_number: "123"
   # If you want to share this step into a StepLib
-  - BITRISE_STEP_ID: stamp-appicon-with-version-number
+  - BITRISE_STEP_ID: bitrise-step-stamp-appicon-with-version-number
   - BITRISE_STEP_VERSION: "1.2.0"
   - BITRISE_STEP_GIT_CLONE_URL: https://github.com/ollitapa/bitrise-step-stamp-appicon-with-version-number.git
   - MY_STEPLIB_REPO_FORK_GIT_URL: https://github.com/ollitapa/bitrise-steplib
