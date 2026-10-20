@@ -104,9 +104,28 @@ Bitrise StepLib:
 1. Bump the `version:` field in `step.yml` and commit the change.
 1. Update `RELEASE_NOTES.md` with the changes included in this version;
    its content becomes the GitHub release body.
-1. Provide a `GITHUB_TOKEN` (GitHub access token with `repo` scope) in
-   `.bitrise.secrets.yml`, used for the tag push and the GitHub release.
 1. Run: `bitrise run release-this-step`
+
+### Authentication on Bitrise CI
+
+The tag push and the GitHub release need a token with `contents:write`
+on the repository. Both are resolved in this order:
+
+1. `GITHUB_TOKEN` — a GitHub personal access token (fine-grained with
+   contents read/write, or classic with `repo` scope) set as a Bitrise
+   secret or in `.bitrise.secrets.yml`.
+1. `GIT_HTTP_PASSWORD` — the per-build token automatically provided by
+   the Bitrise GitHub App integration. By default this token only has
+   `contents:read`; for it to work here, the app must be granted
+   extended permissions (Project settings -> Integrations -> GitHub ->
+   "Extend GitHub App permissions"), or the equivalent API setting.
+   The token is short-lived and scoped to the build, so no secret
+   management is needed.
+
+Locally (with the Bitrise CLI), `GIT_HTTP_PASSWORD` is not set, so a
+`GITHUB_TOKEN` is required.
+
+### One caveat about `step.yml` versioning
 
 The workflow runs `audit-this-step` and `test` first, then tags the
 current commit with the version from `step.yml`, creates a GitHub

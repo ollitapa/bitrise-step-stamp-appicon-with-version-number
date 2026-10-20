@@ -53,9 +53,10 @@ workflows:
     description: |-
       Tags the current commit with the version in `step.yml`.
 
-      Requires a GitHub access token with `repo` scope in the
-      `GITHUB_TOKEN` environment (a personal access token works;
-      the value is only used for the authenticated push).
+      Authentication: uses `GITHUB_TOKEN` if set, otherwise falls back
+      to the Bitrise GitHub App build token in `GIT_HTTP_PASSWORD`
+      (requires the app to have extended/full permissions, including
+      contents:write). Fails if neither is available.
     steps:
     - script:
         inputs:
@@ -80,10 +81,16 @@ workflows:
               fi
             fi
             echo "Tagging release: ${step_version}"
+            gh_token="${GITHUB_TOKEN:-${GIT_HTTP_PASSWORD}}"
+            if [ -z "$gh_token" ]; then
+              echo "No GitHub token found! Set GITHUB_TOKEN or rely on the Bitrise GitHub App token in GIT_HTTP_PASSWORD."
+              exit 1
+            fi
+            repo_slug="$(git remote get-url origin | sed 's#.*github.com[:/]##;s#\.git$##')"
             git config user.name "${GIT_TAG_USER_NAME:-bitrise-step-release}"
             git config user.email "${GIT_TAG_USER_EMAIL:-bot@users.noreply.github.com}"
             git tag -a "${step_version}" -m "Release ${step_version}"
-            git push "https://x-access-token:${GITHUB_TOKEN}@github.com/$(git remote get-url origin | sed 's#.*github.com[:/]##;s#\.git$##').git" "${step_version}"
+            git push "https://x-access-token:${gh_token}@github.com/${repo_slug}.git" "${step_version}"
 
   # ----------------------------------------------------------------
   # --- workflow to create a GitHub release for the step version tag
@@ -92,8 +99,10 @@ workflows:
       Creates a GitHub release for the tag matching the version in
       `step.yml`.
 
-      Requires a GitHub access token with `repo` scope in the
-      `GITHUB_TOKEN` environment.
+      Authentication: uses `GITHUB_TOKEN` if set, otherwise falls back
+      to the Bitrise GitHub App build token in `GIT_HTTP_PASSWORD`
+      (requires the app to have extended/full permissions, including
+      contents:write). Fails if neither is available.
     steps:
     - script:
         inputs:
@@ -109,7 +118,12 @@ workflows:
               exit 1
             fi
             release_body="$(cat RELEASE_NOTES.md 2>/dev/null || echo "Release of ${step_version}")"
-            GITHUB_TOKEN="${GITHUB_TOKEN}" STEP_VERSION="${step_version}" RELEASE_BODY="${release_body}" python3 <<'PYEOF_INNER'
+            gh_token="${GITHUB_TOKEN:-${GIT_HTTP_PASSWORD}}"
+            if [ -z "$gh_token" ]; then
+              echo "No GitHub token found! Set GITHUB_TOKEN or rely on the Bitrise GitHub App token in GIT_HTTP_PASSWORD."
+              exit 1
+            fi
+            GITHUB_TOKEN="${gh_token}" STEP_VERSION="${step_version}" RELEASE_BODY="${release_body}" python3 <<'PYEOF_INNER'
             import json
             import os
             import urllib.error
