@@ -34,8 +34,9 @@ workflows:
         - content: |-
             #!/bin/bash
             set -ex
+            # cwd is still ./testing (set by change-workdir in the test workflow)
             mkdir -p "${BITRISE_DEPLOY_DIR}/stamped-icons"
-            cp ./testing/AppIcon/*.png "${BITRISE_DEPLOY_DIR}/stamped-icons/"
+            cp ./AppIcon/*.png "${BITRISE_DEPLOY_DIR}/stamped-icons/"
     - deploy-to-bitrise-io:
         run_if: .IsCI
         inputs:
