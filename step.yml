@@ -9,6 +9,7 @@
 
 title: |-
   Stamp AppIcon with version number
+version: 1.2.0
 summary: |
   This step will use ImageMagick to stamp the version number to all icons.
 description: |

@@ -47,6 +47,98 @@ workflows:
             set -ex
             stepman audit --step-yml ./step.yml
 
+  # ----------------------------------------------------------------
+  # --- workflow to tag a release with the step version
+  tag-this-step:
+    description: |-
+      Tags the current commit with the version in `step.yml`.
+
+      Requires a GitHub access token with `repo` scope in the
+      `GITHUB_TOKEN` environment (a personal access token works;
+      the value is only used for the authenticated push).
+    steps:
+    - script:
+        inputs:
+        - content: |-
+            #!/bin/bash
+            set -ex
+            step_version="$(grep -m1 '^version:' step.yml | awk '{print $2}')"
+            if [ -z "$step_version" ]; then
+              step_version="${BITRISE_STEP_VERSION}"
+            fi
+            if [ -z "$step_version" ]; then
+              echo "Could not read version from step.yml or BITRISE_STEP_VERSION!"
+              exit 1
+            fi
+            echo "Tagging release: ${step_version}"
+            git config user.name "${GIT_TAG_USER_NAME:-bitrise-step-release}"
+            git config user.email "${GIT_TAG_USER_EMAIL:-bot@users.noreply.github.com}"
+            git tag -a "${step_version}" -m "Release ${step_version}"
+            git push "https://x-access-token:${GITHUB_TOKEN}@github.com/$(git remote get-url origin | sed 's#.*github.com[:/]##;s#\.git$##').git" "${step_version}"
+
+  # ----------------------------------------------------------------
+  # --- workflow to create a GitHub release for the step version tag
+  github-release-this-step:
+    description: |-
+      Creates a GitHub release for the tag matching the version in
+      `step.yml`.
+
+      Requires a GitHub access token with `repo` scope in the
+      `GITHUB_TOKEN` environment.
+    steps:
+    - script:
+        inputs:
+        - content: |-
+            #!/bin/bash
+            set -ex
+            step_version="$(grep -m1 '^version:' step.yml | awk '{print $2}')
+            if [ -z "$step_version" ]; then
+              echo "Could not read version from step.yml!"
+              exit 1
+            fi
+            repo_slug="$(git remote get-url origin | sed 's#.*github.com[:/]##;s#\.git$##')"
+            release_body="$(cat RELEASE_NOTES.md 2>/dev/null || echo "Release of ${step_version}")"
+            set +e
+            status="$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: token ${GITHUB_TOKEN}" \
+              "https://api.github.com/repos/${repo_slug}/releases/tags/${step_version}")"
+            set -e
+            if [ "$status" = "200" ]; then
+              echo "Release for ${step_version} already exists, skipping creation."
+              exit 0
+            fi
+            curl -sf -H "Authorization: token ${GITHUB_TOKEN}" \
+              -H 'Content-Type: application/json' \
+              -X POST "https://api.github.com/repos/${repo_slug}/releases" \
+              -d "{\"tag_name\": \"${step_version}\", \"name\": \"${step_version}\", \"body\": $(echo "$release_body" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))'), \"draft\": false, \"prerelease\": false}"
+
+  # ----------------------------------------------------------------
+  # --- one-call release flow: audit -> test -> tag -> GitHub release -> share
+  release-this-step:
+    description: |-
+      One-call release flow for this step. Runs `audit-this-step`, `test`,
+      `tag-this-step`, `github-release-this-step` and `share-this-step` in
+      order, using the version from `step.yml` as the single source of truth.
+
+      Setup:
+
+      - Bump `version:` in `step.yml` and commit.
+      - Provide a `GITHUB_TOKEN` (GitHub access token with `repo` scope) in
+        `.bitrise.secrets.yml`, for the tag push and the GitHub release.
+      - Optionally add a `RELEASE_NOTES.md` to the repo root; its content
+        becomes the GitHub release body.
+
+      Then run: $ bitrise run release-this-step
+
+      After the share process finishes, open a Pull Request in the
+      official Bitrise StepLib repository as described in the guide
+      printed at the end of the process.
+    before_run:
+    - audit-this-step
+    - test
+    - tag-this-step
+    - github-release-this-step
+    - share-this-step
+
   share-this-step:
     envs:
       # if you want to share this step into a StepLib
