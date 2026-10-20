@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
+	"log"
 	"math"
 	"os"
 	"os/exec"
-	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -18,32 +18,37 @@ func main() {
 	fgColor := os.Getenv("foreground_color")
 	bgColor := os.Getenv("background_color")
 
-	fmt.Println("Version number to stamp:", version)
-	fmt.Println("Build number to stamp:", buildNumber)
-	fmt.Println("Foreground color is:", fgColor)
-	fmt.Println("Background color is:", bgColor)
+	log.Println("Version number to stamp:", version)
+	log.Println("Build number to stamp:", buildNumber)
+	log.Println("Foreground color is:", fgColor)
+	log.Println("Background color is:", bgColor)
 
-	fmt.Println("Finding icons from directory:", iconPath)
+	log.Println("Finding icons from directory:", iconPath)
 
-	files, err := ioutil.ReadDir(iconPath)
+	files, err := os.ReadDir(iconPath)
 	if err != nil {
-		fmt.Println("Could not read directory!")
+		log.Printf("Could not read directory: %v", err)
 		os.Exit(1)
 	}
 
 	filePaths := make([]string, 0)
 	for _, f := range files {
-		if path.Ext(f.Name()) == ".png" {
-			filePaths = append(filePaths, path.Join(iconPath, f.Name()))
+		if filepath.Ext(f.Name()) == ".png" {
+			filePaths = append(filePaths, filepath.Join(iconPath, f.Name()))
 		}
 	}
 
-	fmt.Println(filePaths)
+	if len(filePaths) == 0 {
+		log.Println("No .png icons found in directory:", iconPath)
+		os.Exit(1)
+	}
+
+	log.Println(filePaths)
 
 	for _, f := range filePaths {
 		dimsOut, err := exec.Command("identify", "-format", "%w,%h", f).Output()
 		if err != nil {
-			fmt.Println("ImageMagick failed!")
+			log.Printf("ImageMagick failed to read dimensions of %s: %v", f, err)
 			os.Exit(1)
 		}
 
@@ -51,7 +56,8 @@ func main() {
 
 		width, err1 := strconv.Atoi(dims[0])
 		height, err2 := strconv.Atoi(dims[1])
-		if err1 != nil && err2 != nil {
+		if err1 != nil || err2 != nil {
+			log.Printf("Could not parse image dimensions %q for %s", string(dimsOut), f)
 			os.Exit(1)
 		}
 
@@ -60,7 +66,7 @@ func main() {
 
 		bannerCaption := "- " + version + "(" + buildNumber + ")" + " -"
 
-		imgOutString, error := exec.Command("convert",
+		imgOut, err := exec.Command("convert",
 			"-background", bgColor,
 			"-fill", fgColor,
 			"-gravity", "center",
@@ -69,10 +75,9 @@ func main() {
 			f, "+swap",
 			"-gravity", "south",
 			"-composite", f).CombinedOutput()
-		if error != nil {
-			fmt.Println(string(imgOutString))
-			fmt.Println(error)
-			fmt.Println("ImageMagick failed!")
+		if err != nil {
+			fmt.Println(string(imgOut))
+			log.Printf("ImageMagick failed to stamp %s: %v", f, err)
 			os.Exit(1)
 		}
 
@@ -81,7 +86,7 @@ func main() {
 	//
 	// --- Exit codes:
 	// The exit code of your Step is very important. If you return
-	//  with a 0 exit code `bitrise` will register your Step as "successful".
+	// with a 0 exit code `bitrise` will register your Step as "successful".
 	// Any non zero exit code will be registered as "failed" by `bitrise`.
 	os.Exit(0)
 }
