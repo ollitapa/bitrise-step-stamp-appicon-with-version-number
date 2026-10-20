@@ -20,7 +20,7 @@ workflows:
         inputs:
         - path: ./testing
         - is_create_path: true
-    - path::./:
+    - path::$BITRISE_SOURCE_DIR:
         title: Step Test
         description: |-
           Stamp test icon with version 1.2(123) with default colors.
