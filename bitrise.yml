@@ -70,6 +70,15 @@ workflows:
               echo "Could not read version from step.yml or BITRISE_STEP_VERSION!"
               exit 1
             fi
+            if git rev-parse -q --verify "refs/tags/${step_version}" >/dev/null; then
+              if [ "$(git rev-parse HEAD)" = "$(git rev-parse "${step_version}^{commit}")" ]; then
+                echo "Tag ${step_version} already exists on this commit, skipping tagging."
+                exit 0
+              else
+                echo "Tag ${step_version} already exists on a different commit!"
+                exit 1
+              fi
+            fi
             echo "Tagging release: ${step_version}"
             git config user.name "${GIT_TAG_USER_NAME:-bitrise-step-release}"
             git config user.email "${GIT_TAG_USER_EMAIL:-bot@users.noreply.github.com}"
@@ -91,25 +100,54 @@ workflows:
         - content: |-
             #!/bin/bash
             set -ex
-            step_version="$(grep -m1 '^version:' step.yml | awk '{print $2}')
+            step_version="$(grep -m1 '^version:' step.yml | awk '{print $2}')"
             if [ -z "$step_version" ]; then
-              echo "Could not read version from step.yml!"
+              step_version="${BITRISE_STEP_VERSION}"
+            fi
+            if [ -z "$step_version" ]; then
+              echo "Could not read version from step.yml or BITRISE_STEP_VERSION!"
               exit 1
             fi
-            repo_slug="$(git remote get-url origin | sed 's#.*github.com[:/]##;s#\.git$##')"
             release_body="$(cat RELEASE_NOTES.md 2>/dev/null || echo "Release of ${step_version}")"
-            set +e
-            status="$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: token ${GITHUB_TOKEN}" \
-              "https://api.github.com/repos/${repo_slug}/releases/tags/${step_version}")"
-            set -e
-            if [ "$status" = "200" ]; then
-              echo "Release for ${step_version} already exists, skipping creation."
-              exit 0
-            fi
-            curl -sf -H "Authorization: token ${GITHUB_TOKEN}" \
-              -H 'Content-Type: application/json' \
-              -X POST "https://api.github.com/repos/${repo_slug}/releases" \
-              -d "{\"tag_name\": \"${step_version}\", \"name\": \"${step_version}\", \"body\": $(echo "$release_body" | python3 -c 'import json,sys; print(json.dumps(sys.stdin.read()))'), \"draft\": false, \"prerelease\": false}"
+            GITHUB_TOKEN="${GITHUB_TOKEN}" STEP_VERSION="${step_version}" RELEASE_BODY="${release_body}" python3 <<'PYEOF_INNER'
+            import json
+            import os
+            import urllib.error
+            import urllib.request
+
+            token = os.environ["GITHUB_TOKEN"]
+            version = os.environ["STEP_VERSION"]
+            body = os.environ["RELEASE_BODY"]
+            repo_slug = os.popen("git remote get-url origin | sed 's#.*github.com[:/]##;s#\.git$##'").read().strip()
+
+            req = urllib.request.Request(
+                f"https://api.github.com/repos/{repo_slug}/releases/tags/{version}",
+                headers={"Authorization": f"token {token}"},
+            )
+            try:
+                urllib.request.urlopen(req)
+                print(f"Release for {version} already exists, skipping creation.")
+                raise SystemExit(0)
+            except urllib.error.HTTPError as e:
+                if e.code != 404:
+                    raise
+
+            payload = json.dumps({
+                "tag_name": version,
+                "name": version,
+                "body": body,
+                "draft": False,
+                "prerelease": False,
+            }).encode()
+            req = urllib.request.Request(
+                f"https://api.github.com/repos/{repo_slug}/releases",
+                data=payload,
+                headers={"Authorization": f"token {token}", "Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(req) as resp:
+                print(f"Created GitHub release {version}: {resp.status}")
+            PYEOF_INNER
 
   # ----------------------------------------------------------------
   # --- one-call release flow: audit -> test -> tag -> GitHub release -> share

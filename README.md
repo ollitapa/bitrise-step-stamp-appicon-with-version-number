@@ -94,3 +94,25 @@ You can share your Step or step version with the [bitrise CLI](https://github.co
 1. Send the Pull Request, as described in the logs of `bitrise run share-this-step`
 
 That's all ;)
+
+## Release a new version
+
+This repository includes a one-call release flow that tags the release,
+creates a GitHub release, and shares the new step version with the
+Bitrise StepLib:
+
+1. Bump the `version:` field in `step.yml` and commit the change.
+1. Update `RELEASE_NOTES.md` with the changes included in this version;
+   its content becomes the GitHub release body.
+1. Provide a `GITHUB_TOKEN` (GitHub access token with `repo` scope) in
+   `.bitrise.secrets.yml`, used for the tag push and the GitHub release.
+1. Run: `bitrise run release-this-step`
+
+The workflow runs `audit-this-step` and `test` first, then tags the
+current commit with the version from `step.yml`, creates a GitHub
+release for that tag, and finally runs `share-this-step` to submit the
+version to your StepLib fork.
+
+After the share process finishes, open a Pull Request in the official
+Bitrise StepLib repository as described in the guide printed at the
+end of the process.
