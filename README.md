@@ -30,6 +30,7 @@ Add it to your workflow in the Bitrise Workflow Editor, or reference it directly
 | `stamp_build_number` | Build number to stamp | `$BITRISE_BUILD_NUMBER` |
 | `foreground_color` | Text color of the stamp (any ImageMagick color) | `white` |
 | `background_color` | Banner background color (any ImageMagick color) | `#0008` |
+| `stamp_font` | Path to a font file (`.ttf`) for the stamp text; auto-detected if empty | (auto-detect) |
 
 The Step modifies the icon files in place, so run it **before** the build/archive step that consumes the icons.
 
@@ -78,6 +79,7 @@ stamp_version="1.2" \
 stamp_build_number="123" \
 foreground_color="white" \
 background_color="#0008" \
+stamp_font="" \
 ./bin/step
 ```
 
