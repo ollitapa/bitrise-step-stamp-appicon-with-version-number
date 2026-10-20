@@ -33,30 +33,46 @@ Add it to your workflow in the Bitrise Workflow Editor, or reference it directly
 
 The Step modifies the icon files in place, so run it **before** the build/archive step that consumes the icons.
 
-### Requirements
-
-The Step depends on ImageMagick and Ghostscript. Bitrise installs these automatically via the `deps` section of `step.yml`. To run it outside Bitrise:
-
-- **macOS:** `brew install imagemagick ghostscript`
-- **Linux:** `sudo apt-get install imagemagick ghostscript`
-
 ## How to build and run locally
 
-Prerequisites:
+### Installing Go
 
-- [Go](https://go.dev/dl/) 1.21 or newer
-- ImageMagick and Ghostscript (see above)
-- [Bitrise CLI](https://github.com/bitrise-io/bitrise) (only needed to run the test workflow)
+The easiest way to install Go on macOS or Linux is with Homebrew (on Linux, [install Homebrew first](https://docs.brew.sh/Homebrew-on-Linux)):
 
-Build the Step binary:
+```bash
+brew install go
+```
+
+Verify the installation:
+
+```bash
+go version
+```
+
+Alternatively, download an official installer for your platform from [go.dev/dl](https://go.dev/dl/), or follow the [official installation instructions](https://go.dev/doc/install).
+
+### Installing ImageMagick and Ghostscript
+
+```bash
+brew install imagemagick ghostscript   # macOS
+sudo apt-get install imagemagick ghostscript   # Linux
+```
+
+### Running the Step
+
+The easiest way to run the Step locally is the included example script. It has all inputs configured as editable variables at the top — no command-line configuration needed:
+
+```bash
+./run-example.sh
+```
+
+Open [`run-example.sh`](run-example.sh), edit the values in the *Configuration* section (icon path, version, build number, colors), and run it. It stamps the sample icon in `testing/AppIcon/` with `1.2 (123)` by default. Values can also be overridden per run without editing the file, e.g. `VERSION=2.0 ./run-example.sh`.
+
+Alternatively, build the binary and run it manually:
 
 ```bash
 go build -o ./bin/step .
-```
 
-Run it directly against a directory of icons (inputs are environment variables):
-
-```bash
 stamp_path_to_icons="./testing/AppIcon" \
 stamp_version="1.2" \
 stamp_build_number="123" \
