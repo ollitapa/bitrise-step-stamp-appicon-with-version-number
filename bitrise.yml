@@ -7,6 +7,23 @@ trigger_map:
   workflow: test
 
 workflows:
+  # Workflow stored in Bitrise (wraps the repo config):
+  # clones this repo and re-runs the triggered workflow from this file.
+  # Required while the Bitrise app triggers the dashboard-stored workflow,
+  # otherwise the repo is never cloned and local path:: step references fail.
+  _run_from_repo:
+    steps:
+    - activate-ssh-key:
+        run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
+    - git-clone: {}
+    - script:
+        title: continue from repo
+        inputs:
+        - content: |-
+            #!/bin/bash
+            set -ex
+            bitrise run "${BITRISE_TRIGGERED_WORKFLOW_ID}"
+
   test:
     steps:
     - change-workdir:
