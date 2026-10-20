@@ -20,6 +20,28 @@ workflows:
     - git-clone: {}
     after_run:
     - test
+    - deploy-test-artifacts
+
+  # Deploy the stamped test icons as build artifacts on bitrise.io,
+  # so the stamp result can be verified in the build summary. Skipped
+  # in local runs (no bitrise.io build to attach artifacts to).
+  deploy-test-artifacts:
+    steps:
+    - script:
+        title: Copy stamped test icons to deploy dir
+        run_if: .IsCI
+        inputs:
+        - content: |-
+            #!/bin/bash
+            set -ex
+            mkdir -p "${BITRISE_DEPLOY_DIR}/stamped-icons"
+            cp ./testing/AppIcon/*.png "${BITRISE_DEPLOY_DIR}/stamped-icons/"
+    - deploy-to-bitrise-io:
+        run_if: .IsCI
+        inputs:
+        - deploy_path: ${BITRISE_DEPLOY_DIR}/stamped-icons
+        - is_compress: false
+        - notify_user_groups: ""
 
   # Local step test: run with `bitrise run test` from the repo root.
   test:
