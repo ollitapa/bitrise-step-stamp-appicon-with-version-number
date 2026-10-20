@@ -1,19 +1,31 @@
-format_version: 4
+format_version: '6'
 default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
+project_type: other
 
-app:
-  envs:
-  - stamp_path_to_icons: "AppIcon/"
-  - stamp_version: "0.1"
-  - stamp_build_number: "123"
-  # If you want to share this step into a StepLib
-  - BITRISE_STEP_ID: bitrise-step-stamp-appicon-with-version-number
-  - BITRISE_STEP_VERSION: "1.2.0"
-  - BITRISE_STEP_GIT_CLONE_URL: https://github.com/ollitapa/bitrise-step-stamp-appicon-with-version-number.git
-  - MY_STEPLIB_REPO_FORK_GIT_URL: https://github.com/ollitapa/bitrise-steplib
+trigger_map:
+- pull_request_source_branch: "*"
+  workflow: test
 
 workflows:
+  # Workflow stored in Bitrise (wraps the repo config):
+  # clones this repo and re-runs the triggered workflow from this file.
+  _run_from_repo:
+    steps:
+    - activate-ssh-key:
+        run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
+    - git-clone: {}
+    - script:
+        title: continue from repo
+        inputs:
+        - content: |-
+            #!/bin/bash
+            set -ex
+            bitrise run "${BITRISE_TRIGGERED_WORKFLOW_ID}"
+
   test:
+    triggers:
+      pull_request:
+      - target_branch: main
     steps:
     - change-workdir:
         title: Switch working dir to test / testing dir
@@ -35,7 +47,7 @@ workflows:
         - stamp_path_to_icons: "./AppIcon"
         - stamp_version: "1.2"
         - stamp_build_number: "123"
-            
+
   # ----------------------------------------------------------------
   # --- workflows to Share this step into a Step Library
   audit-this-step:
@@ -49,11 +61,10 @@ workflows:
 
   share-this-step:
     envs:
-      # if you want to share this step into a StepLib
-      - MY_STEPLIB_REPO_FORK_GIT_URL: $MY_STEPLIB_REPO_FORK_GIT_URL
-      - BITRISE_STEP_ID: $BITRISE_STEP_ID
-      - BITRISE_STEP_VERSION: $BITRISE_STEP_VERSION
-      - BITRISE_STEP_GIT_CLONE_URL: $BITRISE_STEP_GIT_CLONE_URL
+    - MY_STEPLIB_REPO_FORK_GIT_URL: https://github.com/ollitapa/bitrise-steplib
+    - BITRISE_STEP_ID: bitrise-step-stamp-appicon-with-version-number
+    - BITRISE_STEP_VERSION: "1.2.0"
+    - BITRISE_STEP_GIT_CLONE_URL: https://github.com/ollitapa/bitrise-step-stamp-appicon-with-version-number.git
     description: |-
       If this is the first time you try to share a Step you should
       first call: $ bitrise share
@@ -67,8 +78,8 @@ workflows:
       in the `.bitrise.secrets.yml` file, or here in the `envs` section,
       as the value of the `MY_STEPLIB_REPO_FORK_GIT_URL` environment.
 
-      You're now ready to share this Step, just make sure that
-      the `BITRISE_STEP_ID` and `BITRISE_STEP_VERSION`
+      You're now ready to share this Step, just make sure that the
+      `BITRISE_STEP_ID` and `BITRISE_STEP_VERSION`
       environments are set to the desired values!
 
       To share this Step into a StepLib you can just run: $ bitrise run share-this-step
@@ -86,3 +97,7 @@ workflows:
             bitrise share start -c "${MY_STEPLIB_REPO_FORK_GIT_URL}"
             bitrise share create --stepid "${BITRISE_STEP_ID}" --tag "${BITRISE_STEP_VERSION}" --git "${BITRISE_STEP_GIT_CLONE_URL}"
             bitrise share finish
+
+meta:
+  bitrise.io:
+    stack: osx-xcode-16.0.x
