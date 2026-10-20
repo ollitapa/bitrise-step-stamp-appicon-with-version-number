@@ -5,6 +5,8 @@ project_type: other
 trigger_map:
 - pull_request_source_branch: "*"
   workflow: ci
+- push_branch: main
+  workflow: ci
 
 workflows:
   # CI entry point for bitrise.io: clones the repo, then runs the
