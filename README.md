@@ -125,7 +125,13 @@ on the repository. Both are resolved in this order:
 Locally (with the Bitrise CLI), `GIT_HTTP_PASSWORD` is not set, so a
 `GITHUB_TOKEN` is required.
 
-### One caveat about `step.yml` versioning
+### Note on `step.yml` versioning
+
+The version tag is read from the `version:` field in `step.yml` (with
+`BITRISE_STEP_VERSION` as a fallback). Since the StepLib pins each
+shared step version to a git tag, always bump `version:` before
+running the release flow; the flow fails if the tag already exists on
+a different commit.
 
 The workflow runs `audit-this-step` and `test` first, then tags the
 current commit with the version from `step.yml`, creates a GitHub
