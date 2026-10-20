@@ -4,9 +4,47 @@ project_type: other
 
 trigger_map:
 - pull_request_source_branch: "*"
-  workflow: test
+  workflow: ci
+- push_branch: main
+  workflow: ci
 
 workflows:
+  # CI entry point for bitrise.io: clones the repo, then runs the
+  # local step test against the cloned source. When the Bitrise app
+  # uses the dashboard-stored config, this clone is the only way the
+  # step code reaches the build machine.
+  ci:
+    steps:
+    - activate-ssh-key:
+        run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
+    - git-clone: {}
+    after_run:
+    - test
+    - deploy-test-artifacts
+
+  # Deploy the stamped test icons as build artifacts on bitrise.io,
+  # so the stamp result can be verified in the build summary. Skipped
+  # in local runs (no bitrise.io build to attach artifacts to).
+  deploy-test-artifacts:
+    steps:
+    - script:
+        title: Copy stamped test icons to deploy dir
+        run_if: .IsCI
+        inputs:
+        - content: |-
+            #!/bin/bash
+            set -ex
+            # cwd is still ./testing (set by change-workdir in the test workflow)
+            mkdir -p "${BITRISE_DEPLOY_DIR}/stamped-icons"
+            cp ./AppIcon/*.png "${BITRISE_DEPLOY_DIR}/stamped-icons/"
+    - deploy-to-bitrise-io:
+        run_if: .IsCI
+        inputs:
+        - deploy_path: ${BITRISE_DEPLOY_DIR}/stamped-icons
+        - is_compress: false
+        - notify_user_groups: ""
+
+  # Local step test: run with `bitrise run test` from the repo root.
   test:
     steps:
     - change-workdir:

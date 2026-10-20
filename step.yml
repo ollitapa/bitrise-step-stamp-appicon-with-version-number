@@ -90,3 +90,12 @@ inputs:
       is_expand: true
       is_required: true
       value_options: []
+  - stamp_font: ""
+    opts:
+      title: "Font file for the stamp text"
+      summary: Path to a font file used for the stamp text
+      description: |
+        Path to a font file (e.g. `.ttf`) used to render the stamp text. If empty, the Step tries to detect a system font (macOS: Helvetica/Arial; Linux: DejaVu/Liberation/FreeSans).
+      is_expand: true
+      is_required: false
+      value_options: []
