@@ -1,5 +1,6 @@
 title: |-
   Stamp AppIcon with version number
+version: 1.2.0
 summary: |
   Stamps the version number and build number on all app icons in a directory.
 description: |

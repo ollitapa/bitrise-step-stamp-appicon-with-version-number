@@ -78,6 +78,111 @@ workflows:
             set -ex
             stepman audit --step-yml ./step.yml
 
+  # ----------------------------------------------------------------
+  # --- workflow to tag a release with the step version
+  tag-this-step:
+    description: |-
+      Tags the current commit with the version in `step.yml` and pushes
+      the tag to origin.
+
+      Meant to run locally with the Bitrise CLI. Requires the `gh` CLI
+      to be installed and signed in (`gh auth login`); the tag push
+      uses your existing git credentials for origin.
+    steps:
+    - script:
+        inputs:
+        - content: |-
+            #!/bin/bash
+            set -ex
+            step_version="$(grep -m1 '^version:' step.yml | awk '{print $2}')"
+            if [ -z "$step_version" ]; then
+              step_version="${BITRISE_STEP_VERSION}"
+            fi
+            if [ -z "$step_version" ]; then
+              echo "Could not read version from step.yml or BITRISE_STEP_VERSION!"
+              exit 1
+            fi
+            if git rev-parse -q --verify "refs/tags/${step_version}" >/dev/null; then
+              if [ "$(git rev-parse HEAD)" = "$(git rev-parse "${step_version}^{commit}")" ]; then
+                echo "Tag ${step_version} already exists on this commit, skipping tagging."
+                exit 0
+              else
+                echo "Tag ${step_version} already exists on a different commit!"
+                exit 1
+              fi
+            fi
+            echo "Tagging release: ${step_version}"
+            gh auth status
+            git tag -a "${step_version}" -m "Release ${step_version}"
+            git push origin "${step_version}"
+
+  # ----------------------------------------------------------------
+  # --- workflow to create a GitHub release for the step version tag
+  github-release-this-step:
+    description: |-
+      Creates a GitHub release for the tag matching the version in
+      `step.yml`, with notes from `RELEASE_NOTES.md`. Skips creation
+      if the release already exists.
+
+      Meant to run locally with the Bitrise CLI. Requires the `gh` CLI
+      to be installed and signed in (`gh auth login`).
+    steps:
+    - script:
+        inputs:
+        - content: |-
+            #!/bin/bash
+            set -ex
+            step_version="$(grep -m1 '^version:' step.yml | awk '{print $2}')"
+            if [ -z "$step_version" ]; then
+              step_version="${BITRISE_STEP_VERSION}"
+            fi
+            if [ -z "$step_version" ]; then
+              echo "Could not read version from step.yml or BITRISE_STEP_VERSION!"
+              exit 1
+            fi
+            gh auth status
+            if gh release view "${step_version}" >/dev/null 2>&1; then
+              echo "Release for ${step_version} already exists, skipping creation."
+              exit 0
+            fi
+            notes_file="$(mktemp)"
+            if [ -f RELEASE_NOTES.md ]; then
+              cp RELEASE_NOTES.md "${notes_file}"
+            else
+              echo "Release of ${step_version}" > "${notes_file}"
+            fi
+            gh release create "${step_version}" --title "${step_version}" --notes-file "${notes_file}" --verify-tag
+            rm -f "${notes_file}"
+
+  # ----------------------------------------------------------------
+  # --- one-call release flow: audit -> test -> tag -> GitHub release -> share
+  release-this-step:
+    description: |-
+      One-call release flow for this step, meant to be run locally
+      with the Bitrise CLI. Runs `audit-this-step`, `test`,
+      `tag-this-step`, `github-release-this-step` and `share-this-step`
+      in order, using the version from `step.yml` as the single source
+      of truth.
+
+      Setup:
+
+      - Install the `gh` CLI and sign in with `gh auth login`.
+      - Bump `version:` in `step.yml` and commit.
+      - Optionally add or update `RELEASE_NOTES.md` in the repo root;
+        its content becomes the GitHub release body.
+
+      Then run: $ bitrise run release-this-step
+
+      After the share process finishes, open a Pull Request in the
+      official Bitrise StepLib repository as described in the guide
+      printed at the end of the process.
+    before_run:
+    - audit-this-step
+    - test
+    - tag-this-step
+    - github-release-this-step
+    - share-this-step
+
   share-this-step:
     envs:
     - MY_STEPLIB_REPO_FORK_GIT_URL: https://github.com/ollitapa/bitrise-steplib

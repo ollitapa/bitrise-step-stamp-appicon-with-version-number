@@ -103,6 +103,44 @@ Tip: copy the test icon first if you want to keep an unstamped original, as the 
 2. Make your changes and test them with `bitrise run test`.
 3. Commit and open a Pull Request.
 
+## Release a new version
+
+This repository includes a one-call release flow that tags the release,
+creates a GitHub release, and shares the new step version with the
+Bitrise StepLib:
+
+The release flow is meant to be run **locally** with the Bitrise CLI,
+not on Bitrise CI.
+
+1. Install the [GitHub CLI](https://cli.github.com/) and sign in once:
+   `gh auth login`
+1. Bump the `version:` field in `step.yml` and commit the change.
+1. Update `RELEASE_NOTES.md` with the changes included in this version;
+   its content becomes the GitHub release body.
+1. Run: `bitrise run release-this-step`
+
+Authentication is handled by your signed-in `gh` session: the release
+is created with `gh release create`, while the tag push uses your
+existing git credentials for `origin`. No tokens or secrets need to be
+configured.
+
+### Note on `step.yml` versioning
+
+The version tag is read from the `version:` field in `step.yml` (with
+`BITRISE_STEP_VERSION` as a fallback). Since the StepLib pins each
+shared step version to a git tag, always bump `version:` before
+running the release flow; the flow fails if the tag already exists on
+a different commit.
+
+The workflow runs `audit-this-step` and `test` first, then tags the
+current commit with the version from `step.yml`, creates a GitHub
+release for that tag, and finally runs `share-this-step` to submit the
+version to your StepLib fork.
+
+After the share process finishes, open a Pull Request in the official
+Bitrise StepLib repository as described in the guide printed at the
+end of the process.
+
 ## License
 
 This project is licensed under the terms of the [LICENSE](LICENSE) file.
