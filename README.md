@@ -1,6 +1,6 @@
 # Stamp AppIcon with version number
 
-[![GitHub](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/ollitapa/bitrise-step-stamp-appicon-with-version-number/blob/master/LICENSE)
+[![GitHub](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/ollitapa/bitrise-step-stamp-appicon-with-version-number/blob/main/LICENSE)
 
 A [Bitrise](https://www.bitrise.io) Step that stamps a version banner — `version (build number)` — onto the bottom of every `.png` icon in a directory, using [ImageMagick](https://imagemagick.org).
 
