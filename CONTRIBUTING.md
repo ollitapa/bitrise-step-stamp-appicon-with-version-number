@@ -18,7 +18,7 @@ Thanks for your interest in improving this Bitrise step!
 
 1. Create a branch for your change.
 2. Keep commits focused and write a clear commit message.
-3. Open a pull request against `master` describing what changed and why, and how you tested it.
+3. Open a pull request against `main` describing what changed and why, and how you tested it.
 
 For general guidance on developing Bitrise steps, see the [Step Development Guideline](https://github.com/bitrise-io/bitrise/blob/master/_docs/step-development-guideline.md).
 
