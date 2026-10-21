@@ -1,99 +1,107 @@
 # Stamp AppIcon with version number
 
-[![Build Status](https://app.bitrise.io/app/58d908aff235ad0e/status.svg?token=kYMD0heCgwGx-IMzv4rbFw&branch=master)](https://app.bitrise.io/app/58d908aff235ad0e) 
 [![GitHub](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/ollitapa/bitrise-step-stamp-appicon-with-version-number/blob/master/LICENSE)
 
-Stamps version "version(build number)" to the bottom of the icon.
+A [Bitrise](https://www.bitrise.io) Step that stamps a version banner — `version (build number)` — onto the bottom of every `.png` icon in a directory, using [ImageMagick](https://imagemagick.org).
 
+Handy for test, beta, and internal builds: every installed build is instantly recognizable on a device's home screen by its icon.
+
+Although originally built for iOS `AppIcon.appiconset` directories, the Step works with any directory of `.png` icons (Android, web app icons, etc.).
 
 ## How to use this Step
 
-Can be run directly with the [bitrise CLI](https://github.com/bitrise-io/bitrise),
-just `git clone` this repository, `cd` into it's folder in your Terminal/Command Line
-and call `bitrise run test`.
+Add it to your workflow in the Bitrise Workflow Editor, or reference it directly in your `bitrise.yml`:
 
-*Check the `bitrise.yml` file for required inputs which have to be
-added to your `.bitrise.secrets.yml` file!*
-
-Step by step:
-
-1. Open up your Terminal / Command Line
-2. `git clone` the repository
-3. `cd` into the directory of the step (the one you just `git clone`d)
-5. Create a `.bitrise.secrets.yml` file in the same directory of `bitrise.yml`
-   (the `.bitrise.secrets.yml` is a git ignored file, you can store your secrets in it)
-6. Check the `bitrise.yml` file for any secret you should set in `.bitrise.secrets.yml`
-  * Best practice is to mark these options with something like `# define these in your .bitrise.secrets.yml`, in the `app:envs` section.
-7. Once you have all the required secret parameters in your `.bitrise.secrets.yml` you can just run this step with the [bitrise CLI](https://github.com/bitrise-io/bitrise): `bitrise run test`
-
-An example `.bitrise.secrets.yml` file:
-
-```
-envs:
-- A_SECRET_PARAM_ONE: the value for secret one
-- A_SECRET_PARAM_TWO: the value for secret two
-```
-
-## How to create your own step
-
-1. Create a new git repository for your step (**don't fork** the *step template*, create a *new* repository)
-2. Copy the [step template](https://github.com/bitrise-steplib/step-template) files into your repository
-3. Fill the `step.sh` with your functionality
-4. Wire out your inputs to `step.yml` (`inputs` section)
-5. Fill out the other parts of the `step.yml` too
-6. Provide test values for the inputs in the `bitrise.yml`
-7. Run your step with `bitrise run test` - if it works, you're ready
-
-__For Step development guidelines & best practices__ check this documentation: [https://github.com/bitrise-io/bitrise/blob/master/_docs/step-development-guideline.md](https://github.com/bitrise-io/bitrise/blob/master/_docs/step-development-guideline.md).
-
-**NOTE:**
-
-If you want to use your step in your project's `bitrise.yml`:
-
-1. git push the step into it's repository
-2. reference it in your `bitrise.yml` with the `git::PUBLIC-GIT-CLONE-URL@BRANCH` step reference style:
-
-```
-- git::https://github.com/user/my-step.git@branch:
-   title: My step
+```yaml
+- git::https://github.com/ollitapa/bitrise-step-stamp-appicon-with-version-number.git@main:
+   title: Stamp app icons with version number
    inputs:
-   - my_input_1: "my value 1"
-   - my_input_2: "my value 2"
+   - stamp_path_to_icons: "MyApp/Assets.xcassets/AppIcon.appiconset"
+   - stamp_version: "1.2"
+   - stamp_build_number: "$BITRISE_BUILD_NUMBER"
 ```
 
-You can find more examples of step reference styles
-in the [bitrise CLI repository](https://github.com/bitrise-io/bitrise/blob/master/_examples/tutorials/steps-and-workflows/bitrise.yml#L65).
+### Inputs
 
-## How to contribute to this Step
+| Input | Description | Default |
+|---|---|---|
+| `stamp_path_to_icons` | Path to the directory containing the icons to stamp | (required) |
+| `stamp_version` | Version number or string to stamp, e.g. `0.1` or `Dev` | (required) |
+| `stamp_build_number` | Build number to stamp | `$BITRISE_BUILD_NUMBER` |
+| `foreground_color` | Text color of the stamp (any ImageMagick color) | `white` |
+| `background_color` | Banner background color (any ImageMagick color) | `#0008` |
+| `stamp_font` | Path to a font file (`.ttf`) for the stamp text; auto-detected if empty | (auto-detect) |
 
-1. Fork this repository
-2. `git clone` it
-3. Create a branch you'll work on
-4. To use/test the step just follow the **How to use this Step** section
-5. Do the changes you want to
-6. Run/test the step before sending your contribution
-  * You can also test the step in your `bitrise` project, either on your Mac or on [bitrise.io](https://www.bitrise.io)
-  * You just have to replace the step ID in your project's `bitrise.yml` with either a relative path, or with a git URL format
-  * (relative) path format: instead of `- original-step-id:` use `- path::./relative/path/of/script/on/your/Mac:`
-  * direct git URL format: instead of `- original-step-id:` use `- git::https://github.com/user/step.git@branch:`
-  * You can find more example of alternative step referencing at: https://github.com/bitrise-io/bitrise/blob/master/_examples/tutorials/steps-and-workflows/bitrise.yml
-7. Once you're done just commit your changes & create a Pull Request
+The Step modifies the icon files in place, so run it **before** the build/archive step that consumes the icons.
 
+## How to build and run locally
 
-## Share your own Step
+### Installing Go
 
-You can share your Step or step version with the [bitrise CLI](https://github.com/bitrise-io/bitrise). If you use the `bitrise.yml` included in this repository, all you have to do is:
+The easiest way to install Go on macOS or Linux is with Homebrew (on Linux, [install Homebrew first](https://docs.brew.sh/Homebrew-on-Linux)):
 
-1. In your Terminal / Command Line `cd` into this directory (where the `bitrise.yml` of the step is located)
-1. Run: `bitrise run test` to test the step
-1. Run: `bitrise run audit-this-step` to audit the `step.yml`
-1. Check the `share-this-step` workflow in the `bitrise.yml`, and fill out the
-   `envs` if you haven't done so already (don't forget to bump the version number if this is an update
-   of your step!)
-1. Then run: `bitrise run share-this-step` to share the step (version) you specified in the `envs`
-1. Send the Pull Request, as described in the logs of `bitrise run share-this-step`
+```bash
+brew install go
+```
 
-That's all ;)
+Verify the installation:
+
+```bash
+go version
+```
+
+Alternatively, download an official installer for your platform from [go.dev/dl](https://go.dev/dl/), or follow the [official installation instructions](https://go.dev/doc/install).
+
+### Installing ImageMagick and Ghostscript
+
+```bash
+brew install imagemagick ghostscript   # macOS
+sudo apt-get install imagemagick ghostscript   # Linux
+```
+
+### Running the Step
+
+The easiest way to run the Step locally is the included example script. It has all inputs configured as editable variables at the top — no command-line configuration needed:
+
+```bash
+./run-example.sh
+```
+
+Open [`run-example.sh`](run-example.sh), edit the values in the *Configuration* section (icon path, version, build number, colors), and run it. It stamps the sample icon in `testing/AppIcon/` with `1.2 (123)` by default. Values can also be overridden per run without editing the file, e.g. `VERSION=2.0 ./run-example.sh`.
+
+Alternatively, build the binary and run it manually:
+
+```bash
+go build -o ./bin/step .
+
+stamp_path_to_icons="./testing/AppIcon" \
+stamp_version="1.2" \
+stamp_build_number="123" \
+foreground_color="white" \
+background_color="#0008" \
+stamp_font="" \
+./bin/step
+```
+
+Or run the included test workflow, which stamps the sample icon in `testing/AppIcon/` with version `1.2 (123)`:
+
+```bash
+bitrise run test
+```
+
+Tip: copy the test icon first if you want to keep an unstamped original, as the Step modifies files in place.
+
+## Development
+
+- The Step code is `main.go`; input metadata lives in `step.yml`.
+- After changing `step.yml`, audit it with `stepman audit --step-yml ./step.yml`.
+- To share a new Step version to the Bitrise Step Library, bump `BITRISE_STEP_VERSION` in `bitrise.yml` and run `bitrise run share-this-step`.
+
+### Contributing
+
+1. Fork this repository and create a branch for your change.
+2. Make your changes and test them with `bitrise run test`.
+3. Commit and open a Pull Request.
 
 ## Release a new version
 
@@ -132,3 +140,7 @@ version to your StepLib fork.
 After the share process finishes, open a Pull Request in the official
 Bitrise StepLib repository as described in the guide printed at the
 end of the process.
+
+## License
+
+This project is licensed under the terms of the [LICENSE](LICENSE) file.

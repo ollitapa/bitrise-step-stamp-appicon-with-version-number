@@ -1,18 +1,49 @@
-format_version: 4
+format_version: '6'
 default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
-
-app:
-  envs:
-  - stamp_path_to_icons: "AppIcon/"
-  - stamp_version: "0.1"
-  - stamp_build_number: "123"
-  # If you want to share this step into a StepLib
-  - BITRISE_STEP_ID: bitrise-step-stamp-appicon-with-version-number
-  - BITRISE_STEP_VERSION: "1.2.0"
-  - BITRISE_STEP_GIT_CLONE_URL: https://github.com/ollitapa/bitrise-step-stamp-appicon-with-version-number.git
-  - MY_STEPLIB_REPO_FORK_GIT_URL: https://github.com/ollitapa/bitrise-steplib
+project_type: other
 
 workflows:
+  # CI entry point for bitrise.io: clones the repo, then runs the
+  # local step test against the cloned source. When the Bitrise app
+  # uses the dashboard-stored config, this clone is the only way the
+  # step code reaches the build machine.
+  ci:
+    steps:
+    - activate-ssh-key:
+        run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
+    - git-clone: {}
+    after_run:
+    - test
+    - deploy-test-artifacts
+    triggers:
+      push:
+      - branch: main
+      pull_request:
+      - source_branch: "*"
+
+  # Deploy the stamped test icons as build artifacts on bitrise.io,
+  # so the stamp result can be verified in the build summary. Skipped
+  # in local runs (no bitrise.io build to attach artifacts to).
+  deploy-test-artifacts:
+    steps:
+    - script:
+        title: Copy stamped test icons to deploy dir
+        run_if: .IsCI
+        inputs:
+        - content: |-
+            #!/bin/bash
+            set -ex
+            # cwd is still ./testing (set by change-workdir in the test workflow)
+            mkdir -p "${BITRISE_DEPLOY_DIR}/stamped-icons"
+            cp ./AppIcon/*.png "${BITRISE_DEPLOY_DIR}/stamped-icons/"
+    - deploy-to-bitrise-io:
+        run_if: .IsCI
+        inputs:
+        - deploy_path: ${BITRISE_DEPLOY_DIR}/stamped-icons
+        - is_compress: false
+        - notify_user_groups: ""
+
+  # Local step test: run with `bitrise run test` from the repo root.
   test:
     steps:
     - change-workdir:
@@ -26,7 +57,7 @@ workflows:
         inputs:
         - path: ./testing
         - is_create_path: true
-    - path::./:
+    - path::$BITRISE_SOURCE_DIR:
         title: Step Test
         description: |-
           Stamp test icon with version 1.2(123) with default colors.
@@ -154,11 +185,10 @@ workflows:
 
   share-this-step:
     envs:
-      # if you want to share this step into a StepLib
-      - MY_STEPLIB_REPO_FORK_GIT_URL: $MY_STEPLIB_REPO_FORK_GIT_URL
-      - BITRISE_STEP_ID: $BITRISE_STEP_ID
-      - BITRISE_STEP_VERSION: $BITRISE_STEP_VERSION
-      - BITRISE_STEP_GIT_CLONE_URL: $BITRISE_STEP_GIT_CLONE_URL
+    - MY_STEPLIB_REPO_FORK_GIT_URL: https://github.com/ollitapa/bitrise-steplib
+    - BITRISE_STEP_ID: bitrise-step-stamp-appicon-with-version-number
+    - BITRISE_STEP_VERSION: "1.2.0"
+    - BITRISE_STEP_GIT_CLONE_URL: https://github.com/ollitapa/bitrise-step-stamp-appicon-with-version-number.git
     description: |-
       If this is the first time you try to share a Step you should
       first call: $ bitrise share
@@ -172,8 +202,8 @@ workflows:
       in the `.bitrise.secrets.yml` file, or here in the `envs` section,
       as the value of the `MY_STEPLIB_REPO_FORK_GIT_URL` environment.
 
-      You're now ready to share this Step, just make sure that
-      the `BITRISE_STEP_ID` and `BITRISE_STEP_VERSION`
+      You're now ready to share this Step, just make sure that the
+      `BITRISE_STEP_ID` and `BITRISE_STEP_VERSION`
       environments are set to the desired values!
 
       To share this Step into a StepLib you can just run: $ bitrise run share-this-step
@@ -191,11 +221,7 @@ workflows:
             bitrise share start -c "${MY_STEPLIB_REPO_FORK_GIT_URL}"
             bitrise share create --stepid "${BITRISE_STEP_ID}" --tag "${BITRISE_STEP_VERSION}" --git "${BITRISE_STEP_GIT_CLONE_URL}"
             bitrise share finish
-#
-# A couple of useful guides & docs:
-#
-# - Main Bitrise CLI docs: https://github.com/bitrise-io/bitrise/tree/master/_docs
-# - Step Development Guideline: https://github.com/bitrise-io/bitrise/blob/master/_docs/step-development-guideline.md
-# - Bitrise.yml format spec: https://github.com/bitrise-io/bitrise/blob/master/_docs/bitrise-yml-format-spec.md
-# - Bitrise docs: http://devcenter.bitrise.io/
-# - Bitrise CLI guides: http://devcenter.bitrise.io/bitrise-cli/
+
+meta:
+  bitrise.io:
+    stack: osx-xcode-latest-stable

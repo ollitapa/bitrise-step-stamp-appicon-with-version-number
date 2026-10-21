@@ -1,51 +1,32 @@
-#
-# A couple of useful guides & docs:
-#
-# - Main Bitrise CLI docs: https://github.com/bitrise-io/bitrise/tree/master/_docs
-# - Step Development Guideline: https://github.com/bitrise-io/bitrise/blob/master/_docs/step-development-guideline.md
-# - Bitrise.yml format spec: https://github.com/bitrise-io/bitrise/blob/master/_docs/bitrise-yml-format-spec.md
-# - Bitrise docs: http://devcenter.bitrise.io/
-# - Bitrise CLI guides: http://devcenter.bitrise.io/bitrise-cli/
-
 title: |-
   Stamp AppIcon with version number
 version: 1.2.0
 summary: |
-  This step will use ImageMagick to stamp the version number to all icons.
+  Stamps the version number and build number on all app icons in a directory.
 description: |
-  Stamps version "version(build number)" to the bottom of the icon.
+  Stamps version `version (build number)` to the bottom of every `.png` icon in the given directory, using ImageMagick.
+
+  Useful for making test, beta, and internal builds instantly recognizable on a device's home screen by their icon.
+
+  ### Configuring the Step
+
+  1. Set the **Path to icons** input to the directory containing the icons you want to stamp.
+  2. Set the **Version number or string** input to the version to display (for example `1.2` or `Dev`).
+  3. Set the **Build number** input to the build number to display. Defaults to `$BITRISE_BUILD_NUMBER`.
+  4. Optionally adjust the foreground (text) and background colors of the stamp.
+
+  ### Troubleshooting
+
+  If the Step fails with an ImageMagick error, make sure ImageMagick and Ghostscript are installed. On Bitrise stacks these are installed automatically; locally you can install them with `brew install imagemagick ghostscript` (macOS) or `sudo apt-get install imagemagick ghostscript` (Linux).
 website: https://github.com/ollitapa/bitrise-step-stamp-appicon-with-version-number
 source_code_url: https://github.com/ollitapa/bitrise-step-stamp-appicon-with-version-number
 support_url: https://github.com/ollitapa/bitrise-step-stamp-appicon-with-version-number/issues
 host_os_tags:
-  - osx-10.10
-  - ubuntu-16.04
+  - osx
+  - ubuntu
 
-# If this step should be available only for certain project types
-# just uncomment this `project_type_tags` section and include all the
-# project types supported by the step. If the step can be used for all
-# project types then you can just remove this section.
-# If no `project_type_tags` specified (or specified as an empty array)
-# that means the step can be used for any project type.
-# You can find more information about project type tags in the Step Development Guideline:
-# https://github.com/bitrise-io/bitrise/blob/master/_docs/step-development-guideline.md
-#
-# project_type_tags:
-  # - ios
-  # - android
-  # - macos
-  # - xamarin
-  # - react-native
-  # - cordova
-  # - ionic
-  # - flutter
-
-
-# Type tags are used for categorizing steps, for easier step discovery in Step Libraries.
-# You can find more information about type tags in the Step Development Guideline:
-# https://github.com/bitrise-io/bitrise/blob/master/_docs/step-development-guideline.md
 type_tags:
-  - deploy
+  - utility
 
 is_requires_admin_user: false
 is_always_run: false
@@ -60,28 +41,26 @@ deps:
   - name: imagemagick
   - name: ghostscript
 
-
 toolkit:
   go:
     package_name: github.com/ollitapa/bitrise-step-stamp-appicon-with-version-number
-
 
 inputs:
   - stamp_path_to_icons:
     opts:
       title: "Path to icons of the project"
-      summary: Relative path to icons
+      summary: Path to the directory containing the icons to stamp
       description: |
-        Relative path to icons for example `Project/General.xcassets/AppIcon.appiconset`
+        Path to the directory containing the icons to stamp, for example `Project/General.xcassets/AppIcon.appiconset`.
       is_expand: true
       is_required: true
       value_options: []
-  - stamp_version: 
+  - stamp_version:
     opts:
       title: "Version number or string"
-      summary: Version number or string
+      summary: Version number or string to stamp on the icons
       description: |
-        Version number or string for example 0.1 or Dev
+        Version number or string to stamp on the icons, for example `0.1` or `Dev`.
       is_expand: true
       is_required: true
       value_options: []
@@ -90,25 +69,34 @@ inputs:
       title: "Build number to stamp on the icon"
       summary: Build number to stamp on the icon
       description: |
-        Build number to stamp on the icon. Defaults to `BITRISE_BUILD_NUMBER`
+        Build number to stamp on the icon. Defaults to `$BITRISE_BUILD_NUMBER`.
       is_expand: true
       is_required: true
       value_options: []
   - foreground_color: "white"
     opts:
       title: "Foreground color of the stamp"
-      summary: Foreground color of the stamp
+      summary: Text color of the stamp
       description: |
-        Foreground color (text color) of the stamp. Defaults to "white"
+        Foreground (text) color of the stamp. Any color accepted by ImageMagick, for example `white` or `#333`. Defaults to `white`.
       is_expand: true
       is_required: true
       value_options: []
   - background_color: "#0008"
     opts:
       title: "Background color of the stamp"
-      summary: Background color of the stamp
+      summary: Background color of the stamp banner
       description: |
-        Background color of the stamp. Defaults to translucent black
+        Background color of the stamp banner. Any color accepted by ImageMagick, for example `#0008` for translucent black. Defaults to `#0008`.
       is_expand: true
       is_required: true
+      value_options: []
+  - stamp_font: ""
+    opts:
+      title: "Font file for the stamp text"
+      summary: Path to a font file used for the stamp text
+      description: |
+        Path to a font file (e.g. `.ttf`) used to render the stamp text. If empty, the Step tries to detect a system font (macOS: Helvetica/Arial; Linux: DejaVu/Liberation/FreeSans).
+      is_expand: true
+      is_required: false
       value_options: []
