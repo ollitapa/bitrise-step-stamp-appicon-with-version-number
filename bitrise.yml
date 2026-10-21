@@ -35,7 +35,7 @@ workflows:
         - stamp_path_to_icons: "./AppIcon"
         - stamp_version: "1.2"
         - stamp_build_number: "123"
-            
+
   # ----------------------------------------------------------------
   # --- workflows to Share this step into a Step Library
   audit-this-step:
@@ -51,12 +51,12 @@ workflows:
   # --- workflow to tag a release with the step version
   tag-this-step:
     description: |-
-      Tags the current commit with the version in `step.yml`.
+      Tags the current commit with the version in `step.yml` and pushes
+      the tag to origin.
 
-      Authentication: uses `GITHUB_TOKEN` if set, otherwise falls back
-      to the Bitrise GitHub App build token in `GIT_HTTP_PASSWORD`
-      (requires the app to have extended/full permissions, including
-      contents:write). Fails if neither is available.
+      Meant to run locally with the Bitrise CLI. Requires the `gh` CLI
+      to be installed and signed in (`gh auth login`); the tag push
+      uses your existing git credentials for origin.
     steps:
     - script:
         inputs:
@@ -81,28 +81,20 @@ workflows:
               fi
             fi
             echo "Tagging release: ${step_version}"
-            gh_token="${GITHUB_TOKEN:-${GIT_HTTP_PASSWORD}}"
-            if [ -z "$gh_token" ]; then
-              echo "No GitHub token found! Set GITHUB_TOKEN or rely on the Bitrise GitHub App token in GIT_HTTP_PASSWORD."
-              exit 1
-            fi
-            repo_slug="$(git remote get-url origin | sed 's#.*github.com[:/]##;s#\.git$##')"
-            git config user.name "${GIT_TAG_USER_NAME:-bitrise-step-release}"
-            git config user.email "${GIT_TAG_USER_EMAIL:-bot@users.noreply.github.com}"
+            gh auth status
             git tag -a "${step_version}" -m "Release ${step_version}"
-            git push "https://x-access-token:${gh_token}@github.com/${repo_slug}.git" "${step_version}"
+            git push origin "${step_version}"
 
   # ----------------------------------------------------------------
   # --- workflow to create a GitHub release for the step version tag
   github-release-this-step:
     description: |-
       Creates a GitHub release for the tag matching the version in
-      `step.yml`.
+      `step.yml`, with notes from `RELEASE_NOTES.md`. Skips creation
+      if the release already exists.
 
-      Authentication: uses `GITHUB_TOKEN` if set, otherwise falls back
-      to the Bitrise GitHub App build token in `GIT_HTTP_PASSWORD`
-      (requires the app to have extended/full permissions, including
-      contents:write). Fails if neither is available.
+      Meant to run locally with the Bitrise CLI. Requires the `gh` CLI
+      to be installed and signed in (`gh auth login`).
     steps:
     - script:
         inputs:
@@ -117,67 +109,36 @@ workflows:
               echo "Could not read version from step.yml or BITRISE_STEP_VERSION!"
               exit 1
             fi
-            release_body="$(cat RELEASE_NOTES.md 2>/dev/null || echo "Release of ${step_version}")"
-            gh_token="${GITHUB_TOKEN:-${GIT_HTTP_PASSWORD}}"
-            if [ -z "$gh_token" ]; then
-              echo "No GitHub token found! Set GITHUB_TOKEN or rely on the Bitrise GitHub App token in GIT_HTTP_PASSWORD."
-              exit 1
+            gh auth status
+            if gh release view "${step_version}" >/dev/null 2>&1; then
+              echo "Release for ${step_version} already exists, skipping creation."
+              exit 0
             fi
-            GITHUB_TOKEN="${gh_token}" STEP_VERSION="${step_version}" RELEASE_BODY="${release_body}" python3 <<'PYEOF_INNER'
-            import json
-            import os
-            import urllib.error
-            import urllib.request
-
-            token = os.environ["GITHUB_TOKEN"]
-            version = os.environ["STEP_VERSION"]
-            body = os.environ["RELEASE_BODY"]
-            repo_slug = os.popen("git remote get-url origin | sed 's#.*github.com[:/]##;s#\.git$##'").read().strip()
-
-            req = urllib.request.Request(
-                f"https://api.github.com/repos/{repo_slug}/releases/tags/{version}",
-                headers={"Authorization": f"token {token}"},
-            )
-            try:
-                urllib.request.urlopen(req)
-                print(f"Release for {version} already exists, skipping creation.")
-                raise SystemExit(0)
-            except urllib.error.HTTPError as e:
-                if e.code != 404:
-                    raise
-
-            payload = json.dumps({
-                "tag_name": version,
-                "name": version,
-                "body": body,
-                "draft": False,
-                "prerelease": False,
-            }).encode()
-            req = urllib.request.Request(
-                f"https://api.github.com/repos/{repo_slug}/releases",
-                data=payload,
-                headers={"Authorization": f"token {token}", "Content-Type": "application/json"},
-                method="POST",
-            )
-            with urllib.request.urlopen(req) as resp:
-                print(f"Created GitHub release {version}: {resp.status}")
-            PYEOF_INNER
+            notes_file="$(mktemp)"
+            if [ -f RELEASE_NOTES.md ]; then
+              cp RELEASE_NOTES.md "${notes_file}"
+            else
+              echo "Release of ${step_version}" > "${notes_file}"
+            fi
+            gh release create "${step_version}" --title "${step_version}" --notes-file "${notes_file}" --verify-tag
+            rm -f "${notes_file}"
 
   # ----------------------------------------------------------------
   # --- one-call release flow: audit -> test -> tag -> GitHub release -> share
   release-this-step:
     description: |-
-      One-call release flow for this step. Runs `audit-this-step`, `test`,
-      `tag-this-step`, `github-release-this-step` and `share-this-step` in
-      order, using the version from `step.yml` as the single source of truth.
+      One-call release flow for this step, meant to be run locally
+      with the Bitrise CLI. Runs `audit-this-step`, `test`,
+      `tag-this-step`, `github-release-this-step` and `share-this-step`
+      in order, using the version from `step.yml` as the single source
+      of truth.
 
       Setup:
 
+      - Install the `gh` CLI and sign in with `gh auth login`.
       - Bump `version:` in `step.yml` and commit.
-      - Provide a `GITHUB_TOKEN` (GitHub access token with `repo` scope) in
-        `.bitrise.secrets.yml`, for the tag push and the GitHub release.
-      - Optionally add a `RELEASE_NOTES.md` to the repo root; its content
-        becomes the GitHub release body.
+      - Optionally add or update `RELEASE_NOTES.md` in the repo root;
+        its content becomes the GitHub release body.
 
       Then run: $ bitrise run release-this-step
 
@@ -230,3 +191,11 @@ workflows:
             bitrise share start -c "${MY_STEPLIB_REPO_FORK_GIT_URL}"
             bitrise share create --stepid "${BITRISE_STEP_ID}" --tag "${BITRISE_STEP_VERSION}" --git "${BITRISE_STEP_GIT_CLONE_URL}"
             bitrise share finish
+#
+# A couple of useful guides & docs:
+#
+# - Main Bitrise CLI docs: https://github.com/bitrise-io/bitrise/tree/master/_docs
+# - Step Development Guideline: https://github.com/bitrise-io/bitrise/blob/master/_docs/step-development-guideline.md
+# - Bitrise.yml format spec: https://github.com/bitrise-io/bitrise/blob/master/_docs/bitrise-yml-format-spec.md
+# - Bitrise docs: http://devcenter.bitrise.io/
+# - Bitrise CLI guides: http://devcenter.bitrise.io/bitrise-cli/
