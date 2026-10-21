@@ -2,12 +2,6 @@ format_version: '6'
 default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
 project_type: other
 
-trigger_map:
-- pull_request_source_branch: "*"
-  workflow: ci
-- push_branch: main
-  workflow: ci
-
 workflows:
   # CI entry point for bitrise.io: clones the repo, then runs the
   # local step test against the cloned source. When the Bitrise app
@@ -21,6 +15,11 @@ workflows:
     after_run:
     - test
     - deploy-test-artifacts
+    triggers:
+      push:
+      - branch: main
+      pull_request:
+      - source_branch: "*"
 
   # Deploy the stamped test icons as build artifacts on bitrise.io,
   # so the stamp result can be verified in the build summary. Skipped
