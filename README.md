@@ -8,6 +8,8 @@ Handy for test, beta, and internal builds: every installed build is instantly re
 
 Although originally built for iOS `AppIcon.appiconset` directories, the Step works with any directory of `.png` icons (Android, web app icons, etc.).
 
+If `stamp_path_to_icons` is empty, the Step automatically finds icon directories in the project — iOS `*.xcassets/*.appiconset`, Android `mipmap-*`/`drawable-*`, and macOS `*.iconset` — so iOS, Android, Flutter, and React Native projects need zero configuration.
+
 ## How to use this Step
 
 Add it to your workflow in the Bitrise Workflow Editor, or reference it directly in your `bitrise.yml`:
@@ -25,7 +27,7 @@ Add it to your workflow in the Bitrise Workflow Editor, or reference it directly
 
 | Input | Description | Default |
 |---|---|---|
-| `stamp_path_to_icons` | Path to the directory containing the icons to stamp | (required) |
+| `stamp_path_to_icons` | Path to the directory containing the icons to stamp; auto-detected if empty | (auto-detect) |
 | `stamp_version` | Version number or string to stamp, e.g. `0.1` or `Dev` | (required) |
 | `stamp_build_number` | Build number to stamp | `$BITRISE_BUILD_NUMBER` |
 | `foreground_color` | Text color of the stamp (`#RGB`, `#RRGGBB`, `#RRGGBBAA`, or a common color name) | `white` |

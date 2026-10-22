@@ -189,6 +189,53 @@ func stampIcon(path, version, buildNumber, fgColor, bgColor, fontInput string) e
 	return nil
 }
 
+func isIconDir(path string) bool {
+	base := filepath.Base(path)
+	switch {
+	case strings.HasSuffix(base, ".appiconset"):
+		return true
+	case strings.HasPrefix(base, "mipmap-") || strings.HasPrefix(base, "drawable-"):
+		return true
+	case strings.HasPrefix(base, "AppIcon") && strings.HasSuffix(base, ".iconset"):
+		return true
+	}
+	return false
+}
+
+func findIconDirs(root string) []string {
+	var dirs []string
+	_ = filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil || !d.IsDir() {
+			return nil
+		}
+		if isIconDir(path) {
+			dirs = append(dirs, path)
+			return filepath.SkipDir
+		}
+		if strings.HasSuffix(path, ".git") || strings.HasSuffix(path, "node_modules") || strings.HasSuffix(path, "Pods") {
+			return filepath.SkipDir
+		}
+		return nil
+	})
+	return dirs
+}
+
+func collectPNGs(paths []string) []string {
+	var files []string
+	for _, dir := range paths {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			if !e.IsDir() && strings.EqualFold(filepath.Ext(e.Name()), ".png") {
+				files = append(files, filepath.Join(dir, e.Name()))
+			}
+		}
+	}
+	return files
+}
+
 func main() {
 	iconPath := os.Getenv("stamp_path_to_icons")
 	version := os.Getenv("stamp_version")
@@ -216,23 +263,33 @@ func main() {
 		log.Println("No font specified; using the step's bundled font.")
 	}
 
-	log.Println("Finding icons from directory:", iconPath)
-
-	files, err := os.ReadDir(iconPath)
-	if err != nil {
-		log.Printf("Could not read directory: %v", err)
-		os.Exit(1)
-	}
-
-	filePaths := make([]string, 0)
-	for _, f := range files {
-		if strings.EqualFold(filepath.Ext(f.Name()), ".png") {
-			filePaths = append(filePaths, filepath.Join(iconPath, f.Name()))
+	var searchDirs []string
+	if iconPath == "" {
+		root := os.Getenv("BITRISE_SOURCE_DIR")
+		if root == "" {
+			if cwd, err := os.Getwd(); err == nil {
+				root = cwd
+			}
 		}
+		log.Println("No icon directory given; searching for icon directories under:", root)
+		searchDirs = findIconDirs(root)
+		if len(searchDirs) == 0 {
+			log.Println("No icon directories found (looked for *.appiconset, mipmap-*, drawable-*, *.iconset) under:", root)
+			log.Println("Set the stamp_path_to_icons input to the directory containing your icons.")
+			os.Exit(1)
+		}
+		for _, d := range searchDirs {
+			log.Println("Found icon directory:", d)
+		}
+	} else {
+		log.Println("Finding icons from directory:", iconPath)
+		searchDirs = []string{iconPath}
 	}
+
+	filePaths := collectPNGs(searchDirs)
 
 	if len(filePaths) == 0 {
-		log.Println("No .png icons found in directory:", iconPath)
+		log.Println("No .png icons found in:", searchDirs)
 		os.Exit(1)
 	}
 

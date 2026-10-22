@@ -8,6 +8,8 @@ description: |
 
   Useful for making test, beta, and internal builds instantly recognizable on a device's home screen by their icon.
 
+  If no icon directory is given, the Step auto-detects iOS `.appiconset`, Android `mipmap-*`/`drawable-*`, and macOS `.iconset` directories, so it works for iOS, Android, Flutter, and React Native projects with no configuration.
+
   ### Configuring the Step
 
   1. Set the **Path to icons** input to the directory containing the icons you want to stamp.
@@ -41,11 +43,13 @@ inputs:
   - stamp_path_to_icons:
     opts:
       title: "Path to icons of the project"
-      summary: Path to the directory containing the icons to stamp
+      summary: Path to the directory containing the icons to stamp; auto-detected if empty
       description: |
-        Path to the directory containing the icons to stamp, for example `Project/General.xcassets/AppIcon.appiconset`.
+        Path to the directory containing the icons to stamp, for example `Project/General.xcassets/AppIcon.appiconset` or `android/app/src/main/res/mipmap-hdpi`.
+
+        If empty, the Step searches the source directory (`$BITRISE_SOURCE_DIR`, or the working directory locally) for icon directories: `*.xcassets/*.appiconset` (iOS), `mipmap-*` and `drawable-*` (Android), and `*.iconset` (macOS), and stamps all of them.
       is_expand: true
-      is_required: true
+      is_required: false
       value_options: []
   - stamp_version:
     opts:
