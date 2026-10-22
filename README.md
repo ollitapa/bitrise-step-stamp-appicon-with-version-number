@@ -30,6 +30,9 @@ Add it to your workflow in the Bitrise Workflow Editor, or reference it directly
 | `stamp_path_to_icons` | Path to the directory containing the icons to stamp; auto-detected if empty | (auto-detect) |
 | `stamp_version` | Version number or string to stamp, e.g. `0.1` or `Dev` | (required) |
 | `stamp_build_number` | Build number to stamp | `$BITRISE_BUILD_NUMBER` |
+| `stamp_text` | Stamp text template with `%version%`/`%build%` placeholders; empty uses the default `- version(build)` format | (default format) |
+| `stamp_position` | Banner position: `north`, `south`, or `center` | `south` |
+| `stamp_banner_height_ratio` | Banner height as a ratio of icon height (0–1) | `0.3` |
 | `foreground_color` | Text color of the stamp (`#RGB`, `#RRGGBB`, `#RRGGBBAA`, or a common color name) | `white` |
 | `background_color` | Banner background color (same formats as `foreground_color`) | `#0008` |
 | `stamp_font` | Path to a font file (`.ttf`/`.otf`) for the stamp text; uses the step's bundled font if empty | (bundled font) |
