@@ -13,6 +13,7 @@ workflows:
         run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
     - git-clone: {}
     after_run:
+    - lint-and-test
     - test
     - deploy-test-artifacts
     triggers:
@@ -22,10 +23,37 @@ workflows:
       - source_branch: "*"
 
   # Deploy the stamped test icons as build artifacts on bitrise.io,
-  # so the stamp result can be verified in the build summary. Skipped
-  # in local runs (no bitrise.io build to attach artifacts to).
+  # so the stamp result can be verified in the build summary. Also
+  # stamps a second variant with a custom template and north position
+  # to exercise the new inputs in CI. Skipped in local runs (no
+  # bitrise.io build to attach artifacts to).
   deploy-test-artifacts:
     steps:
+    - script:
+        title: Stamp a second icon variant with custom template and position
+        run_if: .IsCI
+        inputs:
+        - content: |-
+            #!/bin/bash
+            set -ex
+            # cwd is still ./testing (set by change-workdir in the test workflow)
+            rm -rf ./AppIcon-custom
+            mkdir -p ./AppIcon-custom
+            cp ./AppIcon/*.png ./AppIcon-custom/
+    - path::$BITRISE_SOURCE_DIR:
+        title: Step Test (custom template)
+        description: |-
+          Stamps a copy of the test icon with a custom text template,
+          north banner position, and custom colors, to verify the
+          newer inputs in CI.
+        run_if: .IsCI
+        inputs:
+        - stamp_path_to_icons: "./AppIcon-custom"
+        - stamp_version: "1.2"
+        - stamp_build_number: "123"
+        - stamp_text: "DEV %version% (%build%)"
+        - stamp_position: "north"
+        - background_color: "#333333CC"
     - script:
         title: Copy stamped test icons to deploy dir
         run_if: .IsCI
@@ -36,12 +64,66 @@ workflows:
             # cwd is still ./testing (set by change-workdir in the test workflow)
             mkdir -p "${BITRISE_DEPLOY_DIR}/stamped-icons"
             cp ./AppIcon/*.png "${BITRISE_DEPLOY_DIR}/stamped-icons/"
+            mkdir -p "${BITRISE_DEPLOY_DIR}/stamped-icons-custom"
+            cp ./AppIcon-custom/*.png "${BITRISE_DEPLOY_DIR}/stamped-icons-custom/"
     - deploy-to-bitrise-io:
         run_if: .IsCI
         inputs:
         - deploy_path: ${BITRISE_DEPLOY_DIR}/stamped-icons
         - is_compress: false
         - notify_user_groups: ""
+    - deploy-to-bitrise-io:
+        title: Deploy stamped custom icons to bitrise.io
+        run_if: .IsCI
+        inputs:
+        - deploy_path: ${BITRISE_DEPLOY_DIR}/stamped-icons-custom
+        - is_compress: false
+        - notify_user_groups: ""
+    after_run:
+    - comment-on-pr
+
+  # Static checks and unit tests of the step's Go code: build, vet,
+  # gofmt verification, and `go test`. Runs on every CI build (push
+  # and pull request) and can also be run locally.
+  lint-and-test:
+    steps:
+    - script:
+        title: Go build, vet, gofmt check, and unit tests
+        inputs:
+        - content: |-
+            #!/bin/bash
+            set -ex
+            go build ./...
+            go vet ./...
+            test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
+            go test ./... -v
+
+  # Post the stamped-icon verification results as a comment on the
+  # GitHub pull request that triggered the build, linking to the
+  # stamped icons deployed as build artifacts.
+  #
+  # Requires a GitHub personal access token with public repo (or PR
+  # write) access in the GITHUB_ACCESS_TOKEN secret; on bitrise.io the
+  # build's artifact tab already shows the icons, so the comment makes
+  # reviewing a PR self-contained. The step is skipped when the token
+  # or PR is not available (e.g. local runs).
+  comment-on-pr:
+    steps:
+    - comment-on-github-pull-request:
+        run_if: |-
+          {{getenv "GITHUB_ACCESS_TOKEN" | ne ""}} and {{getenv "BITRISE_GIT_PULL_REQUEST" | ne ""}}
+        inputs:
+        - personal_access_token: $GITHUB_ACCESS_TOKEN
+        - body: |-
+            ## Stamped icons are ready to verify :framed_picture:
+
+            This build stamped the sample icons with the step's default format and with a custom template.
+
+            - Default stamp (`- 1.2(123)`): see the **stamped-icons** artifact on the build's Artifacts tab
+            - Custom stamp (`DEV 1.2 (123)`, north banner): see the **stamped-icons-custom** artifact
+            - Build artifacts: ${BITRISE_BUILD_URL}?tab=artifacts
+
+            Download the artifacts from the build page to visually confirm the stamp rendering before merging.
 
   # Local step test: run with `bitrise run test` from the repo root.
   test:

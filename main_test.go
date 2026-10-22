@@ -5,6 +5,7 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -151,6 +152,24 @@ func TestRenderTemplate(t *testing.T) {
 	for _, tt := range tests {
 		if got := renderTemplate(tt.tpl, tt.version, tt.build); got != tt.want {
 			t.Errorf("renderTemplate(%q) = %q; want %q", tt.tpl, got, tt.want)
+		}
+	}
+}
+
+func TestWriteEnvManifest(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "manifest.yml")
+	envs := map[string]string{"stamped_icon_count": "2", "stamped_icon_paths": "a.png\nb.png"}
+	if err := writeEnvManifest(path, envs); err != nil {
+		t.Fatal(err)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	content := string(data)
+	for k, v := range envs {
+		if !strings.Contains(content, k+"="+v) {
+			t.Errorf("manifest missing %s=%s in:\n%s", k, v, content)
 		}
 	}
 }
