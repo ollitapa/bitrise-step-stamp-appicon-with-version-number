@@ -2,7 +2,7 @@
 
 [![GitHub](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/ollitapa/bitrise-step-stamp-appicon-with-version-number/blob/main/LICENSE)
 
-A [Bitrise](https://www.bitrise.io) Step that stamps a version banner — `version (build number)` — onto the bottom of every `.png` icon in a directory, using [ImageMagick](https://imagemagick.org).
+A [Bitrise](https://www.bitrise.io) Step that stamps a version banner — `version (build number)` — onto the bottom of every `.png` icon in a directory. Stamping is implemented in pure Go, so the Step has no external tool dependencies.
 
 Handy for test, beta, and internal builds: every installed build is instantly recognizable on a device's home screen by its icon.
 
@@ -28,9 +28,9 @@ Add it to your workflow in the Bitrise Workflow Editor, or reference it directly
 | `stamp_path_to_icons` | Path to the directory containing the icons to stamp | (required) |
 | `stamp_version` | Version number or string to stamp, e.g. `0.1` or `Dev` | (required) |
 | `stamp_build_number` | Build number to stamp | `$BITRISE_BUILD_NUMBER` |
-| `foreground_color` | Text color of the stamp (any ImageMagick color) | `white` |
-| `background_color` | Banner background color (any ImageMagick color) | `#0008` |
-| `stamp_font` | Path to a font file (`.ttf`) for the stamp text; auto-detected if empty | (auto-detect) |
+| `foreground_color` | Text color of the stamp (`#RGB`, `#RRGGBB`, `#RRGGBBAA`, or a common color name) | `white` |
+| `background_color` | Banner background color (same formats as `foreground_color`) | `#0008` |
+| `stamp_font` | Path to a font file (`.ttf`/`.otf`) for the stamp text; uses the step's bundled font if empty | (bundled font) |
 
 The Step modifies the icon files in place, so run it **before** the build/archive step that consumes the icons.
 
@@ -51,13 +51,6 @@ go version
 ```
 
 Alternatively, download an official installer for your platform from [go.dev/dl](https://go.dev/dl/), or follow the [official installation instructions](https://go.dev/doc/install).
-
-### Installing ImageMagick and Ghostscript
-
-```bash
-brew install imagemagick ghostscript   # macOS
-sudo apt-get install imagemagick ghostscript   # Linux
-```
 
 ### Running the Step
 
@@ -82,6 +75,8 @@ background_color="#0008" \
 stamp_font="" \
 ./bin/step
 ```
+
+No ImageMagick, Ghostscript, or system fonts are required: the step bundles its own font and does all image processing in Go.
 
 Or run the included test workflow, which stamps the sample icon in `testing/AppIcon/` with version `1.2 (123)`:
 

@@ -24,7 +24,7 @@ VERSION="${VERSION:-1.2}"
 # Build number to stamp
 BUILD_NUMBER="${BUILD_NUMBER:-123}"
 
-# Stamp colors — any color accepted by ImageMagick
+# Stamp colors — #RGB, #RRGGBB, #RRGGBBAA, or a common color name
 FOREGROUND_COLOR="${FOREGROUND_COLOR:-white}"
 BACKGROUND_COLOR="${BACKGROUND_COLOR:-#0008}"
 
