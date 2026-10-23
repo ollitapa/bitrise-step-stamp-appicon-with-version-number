@@ -103,3 +103,39 @@ func averageColor(img image.Image, y int) uint32 {
 	}
 	return (r/n)<<16 | (g/n)<<8 | bl/n
 }
+
+func TestFindIconDirs(t *testing.T) {
+	root := t.TempDir()
+	xcassets := filepath.Join(root, "MyApp.xcassets", "AppIcon.appiconset")
+	mipmap := filepath.Join(root, "app", "src", "main", "res", "mipmap-hdpi")
+	other := filepath.Join(root, "assets", "img")
+	for _, d := range []string{xcassets, mipmap, other} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	dirs := findIconDirs(root)
+	if len(dirs) != 2 {
+		t.Fatalf("findIconDirs found %d dirs (%v); want 2", len(dirs), dirs)
+	}
+	got := map[string]bool{}
+	for _, d := range dirs {
+		got[d] = true
+	}
+	if !got[xcassets] || !got[mipmap] {
+		t.Errorf("findIconDirs = %v; want %v and %v", dirs, xcassets, mipmap)
+	}
+}
+
+func TestCollectPNGs(t *testing.T) {
+	dir := t.TempDir()
+	for _, name := range []string{"a.png", "b.PNG", "c.jpg", "d.txt"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("x"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	files := collectPNGs([]string{dir})
+	if len(files) != 2 {
+		t.Errorf("collectPNGs = %v; want 2 png files", files)
+	}
+}
