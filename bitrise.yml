@@ -110,8 +110,7 @@ workflows:
   comment-on-pr:
     steps:
     - comment-on-github-pull-request:
-        run_if: |-
-          {{getenv "GITHUB_ACCESS_TOKEN" | ne ""}} and {{getenv "BITRISE_GIT_PULL_REQUEST" | ne ""}}
+        run_if: '{{and (getenv "GITHUB_ACCESS_TOKEN" | ne "") (getenv "BITRISE_GIT_PULL_REQUEST" | ne "")}}'
         inputs:
         - personal_access_token: $GITHUB_ACCESS_TOKEN
         - body: |-
