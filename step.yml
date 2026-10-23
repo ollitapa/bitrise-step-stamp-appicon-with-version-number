@@ -60,6 +60,38 @@ inputs:
       is_expand: true
       is_required: true
       value_options: []
+  - stamp_text:
+    opts:
+      title: "Stamp text template"
+      summary: Custom text template for the stamp; empty uses the default "version (build)" format
+      description: |
+        Template for the stamp text. Use `%version%` and `%build%` placeholders, for example `%version% (%build%)`, `Dev %version%`, or `QA %build%`. Newlines are replaced with spaces.
+
+        If empty, the Step stamps `- version(build)` with the version and build number inputs.
+      is_expand: true
+      is_required: false
+      value_options: []
+  - stamp_position: "south"
+    opts:
+      title: "Stamp position"
+      summary: Where the stamp banner is placed on the icon
+      description: |
+        Position of the stamp banner on the icon: `north` (top), `south` (bottom), or `center`. Defaults to `south`.
+      is_expand: true
+      is_required: false
+      value_options:
+      - "north"
+      - "south"
+      - "center"
+  - stamp_banner_height_ratio: "0.3"
+    opts:
+      title: "Banner height ratio"
+      summary: Height of the stamp banner as a ratio of the icon height (0-1)
+      description: |
+        Height of the stamp banner as a ratio of the icon height, between `0` and `1`. Defaults to `0.3` (30% of the icon height).
+      is_expand: true
+      is_required: false
+      value_options: []
   - stamp_build_number: $BITRISE_BUILD_NUMBER
     opts:
       title: "Build number to stamp on the icon"
