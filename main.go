@@ -21,7 +21,7 @@ import (
 
 func measureString(face font.Face, text string) float64 {
 	d := &font.Drawer{Face: face}
-	return float64(d.MeasureString(text))
+	return float64(d.MeasureString(text)) / 64.0
 }
 
 //go:embed assets
@@ -109,24 +109,28 @@ func parseColor(value string) (int, int, int, int, error) {
 }
 
 func fitFace(fontInput, text string, maxWidth, maxHeight int) (font.Face, error) {
-	low, high := 4.0, float64(maxHeight)
-	bestSize := low
-	for high-low > 0.5 {
-		size := math.Floor((low + high) / 2)
+	maxSize := float64(maxHeight) * 0.8
+	if maxSize < 4 {
+		maxSize = 4
+	}
+	best := -1.0
+	for size := 4.0; size <= maxSize; size++ {
 		face, err := loadFace(fontInput, size)
 		if err != nil {
 			return nil, err
 		}
-		w := measureString(face, text)
+		fits := measureString(face, text) <= float64(maxWidth)
 		face.Close()
-		if w <= float64(maxWidth) && size <= float64(maxHeight)*0.8 {
-			bestSize = size
-			low = size
+		if fits {
+			best = size
 		} else {
-			high = size
+			break
 		}
 	}
-	return loadFace(fontInput, bestSize)
+	if best < 0 {
+		best = 4
+	}
+	return loadFace(fontInput, best)
 }
 
 func renderTemplate(tpl, version, buildNumber string) string {
