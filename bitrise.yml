@@ -80,7 +80,7 @@ workflows:
         - is_compress: false
         - notify_user_groups: ""
     after_run:
-    - comment-on-pr
+    - annotate-build
 
   # Static checks and unit tests of the step's Go code: build, vet,
   # gofmt verification, and `go test`. Runs on every CI build (push
@@ -98,31 +98,29 @@ workflows:
             test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
             go test ./... -v
 
-  # Post the stamped-icon verification results as a comment on the
-  # GitHub pull request that triggered the build, linking to the
-  # stamped icons deployed as build artifacts.
-  #
-  # Requires a GitHub personal access token with public repo (or PR
-  # write) access in the GITHUB_ACCESS_TOKEN secret; on bitrise.io the
-  # build's artifact tab already shows the icons, so the comment makes
-  # reviewing a PR self-contained. The step is skipped when the token
-  # or PR is not available (e.g. local runs).
-  comment-on-pr:
+  # Add a build annotation pointing at the stamped-icon verification
+  # artifacts, so the stamp result can be checked directly on the
+  # build details page without any token configuration. Uses the
+  # built-in Bitrise annotations plugin; skipped in local runs (no
+  # bitrise.io build to annotate).
+  annotate-build:
     steps:
-    - comment-on-github-pull-request:
-        run_if: '{{and (getenv "GITHUB_ACCESS_TOKEN" | ne "") (getenv "BITRISE_GIT_PULL_REQUEST" | ne "")}}'
+    - script:
+        title: Annotate build with stamped-icon verification info
+        run_if: .IsCI
         inputs:
-        - personal_access_token: $GITHUB_ACCESS_TOKEN
-        - body: |-
-            ## Stamped icons are ready to verify :framed_picture:
+        - content: |-
+            #!/bin/bash
+            set -ex
+            bitrise plugin install https://github.com/bitrise-io/bitrise-plugins-annotations.git
+            bitrise :annotations annotate "**Stamped icons are ready to verify.**
 
-            This build stamped the sample icons with the step's default format and with a custom template.
+            This build stamped the sample icons with the step's default format and with a custom template:
 
-            - Default stamp (`- 1.2(123)`): see the **stamped-icons** artifact on the build's Artifacts tab
-            - Custom stamp (`DEV 1.2 (123)`, north banner): see the **stamped-icons-custom** artifact
-            - Build artifacts: ${BITRISE_BUILD_URL}?tab=artifacts
+            - Default stamp (\`- 1.2(123)\`): **stamped-icons** artifact on the [Artifacts tab](${BITRISE_BUILD_URL}?tab=artifacts)
+            - Custom stamp (\`DEV 1.2 (123)\`, north banner): **stamped-icons-custom** artifact
 
-            Download the artifacts from the build page to visually confirm the stamp rendering before merging.
+            Download the artifacts to visually confirm the stamp rendering before merging." --style info
 
   # Local step test: run with `bitrise run test` from the repo root.
   test:
