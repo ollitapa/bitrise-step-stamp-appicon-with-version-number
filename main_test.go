@@ -103,3 +103,19 @@ func averageColor(img image.Image, y int) uint32 {
 	}
 	return (r/n)<<16 | (g/n)<<8 | bl/n
 }
+
+func TestFitFaceFillsBanner(t *testing.T) {
+	text := "- 1.2(123)"
+	face, err := fitFace("", text, 525, 99)
+	if err != nil {
+		t.Fatalf("fitFace failed: %v", err)
+	}
+	defer face.Close()
+	m := face.Metrics()
+	if m.Height.Round() < 20 {
+		t.Errorf("fitted font height = %d px; want a font that fills a meaningful part of the 99px banner (>=20px)", m.Height.Round())
+	}
+	if w := measureString(face, text); w > 525 {
+		t.Errorf("fitted text width %.1f exceeds max width 525", w)
+	}
+}
