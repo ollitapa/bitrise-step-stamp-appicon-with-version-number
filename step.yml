@@ -128,3 +128,17 @@ inputs:
       is_expand: true
       is_required: false
       value_options: []
+
+outputs:
+  - stamped_icon_count:
+    opts:
+      title: "Number of stamped icons"
+      summary: Number of icons that were stamped by this Step
+      description: |
+        Number of `.png` icons that were stamped by this Step.
+  - stamped_icon_paths:
+    opts:
+      title: "Paths of stamped icons"
+      summary: Newline-separated list of the stamped icon file paths
+      description: |
+        Newline-separated list of the icon file paths that were stamped by this Step.
