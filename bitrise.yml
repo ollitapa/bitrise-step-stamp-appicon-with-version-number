@@ -93,12 +93,16 @@ workflows:
         - content: |-
             #!/bin/bash
             set -ex
+            # Print the Go version in the logs; the go directive in go.mod
+            # makes the Go toolchain auto-download the required version
+            # on stacks where an older Go is installed.
+            go version
             go build ./...
             go vet ./...
             test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
-            # Install gotestsum once (cached by module cache) and run
-            # the unit tests with JUnit XML output for Test Reports.
-            go install gotest.tools/gotestsum@v1.12.2
+            # Install gotestsum and run the unit tests with JUnit XML
+            # output for Test Reports.
+            go install gotest.tools/gotestsum@v1.13.0
             gotestsum --junitfile "${BITRISE_TEST_RESULT_DIR:-$PWD}/unit-tests.xml" -- ./...
     # Exports the JUnit XML so that the deploy-to-bitrise-io step can
     # send it to the build's Test Reports (Tests tab). Skipped locally

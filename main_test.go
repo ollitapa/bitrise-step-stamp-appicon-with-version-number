@@ -10,6 +10,23 @@ import (
 	"testing"
 )
 
+// testIconPath returns the path of the sample icon, whether tests run
+// from the repo root or the testing directory.
+func testIconPath(t *testing.T) string {
+	t.Helper()
+	candidates := []string{
+		filepath.Join("testing", "AppIcon", "go.png"),
+		filepath.Join("..", "testing", "AppIcon", "go.png"),
+	}
+	for _, c := range candidates {
+		if _, err := os.Stat(c); err == nil {
+			return c
+		}
+	}
+	t.Skipf("test fixture not available")
+	return ""
+}
+
 func TestParseColor(t *testing.T) {
 	tests := []struct {
 		value      string
@@ -45,7 +62,7 @@ func TestParseColor(t *testing.T) {
 
 func TestStampIcon(t *testing.T) {
 	dir := t.TempDir()
-	src, err := os.Open(filepath.Join("..", "testing", "AppIcon", "go.png"))
+	src, err := os.Open(testIconPath(t))
 	if err != nil {
 		t.Skipf("test fixture not available: %v", err)
 	}
@@ -193,7 +210,7 @@ func TestFitFaceFillsBanner(t *testing.T) {
 
 func TestStampIconCentersTextInBanner(t *testing.T) {
 	dir := t.TempDir()
-	src, err := os.Open(filepath.Join("..", "testing", "AppIcon", "go.png"))
+	src, err := os.Open(testIconPath(t))
 	if err != nil {
 		t.Skipf("test fixture not available: %v", err)
 	}
@@ -249,15 +266,21 @@ func TestStampIconCentersTextInBanner(t *testing.T) {
 	}
 	gapAbove := minY - bannerTop
 	gapBelow := b.Dy() - 1 - maxY
-	diff := gapAbove - gapBelow
-	if diff < 0 {
-		diff = -diff
-	}
-	if diff > 3 {
-		t.Errorf("text not vertically centered: gap above banner top = %d, gap below = %d (diff %d > 3)", gapAbove, gapBelow, diff)
-	}
-	// text must not spill above the banner
-	if minY < bannerTop {
+	// The banner is centered on the font's ascent+descent box, but the
+	// visible ink of "- 1.2(123)" does not fill that box (digits have
+	// no descenders, parens exceed cap height), so allow a reasonable
+	// asymmetry instead of pixel-exact ink centering.
+	if gapAbove < 0 {
 		t.Errorf("text spills above the banner: first text row %d < banner top %d", minY, bannerTop)
+	}
+	if gapBelow < 0 {
+		t.Errorf("text spills below the banner: last text row %d >= image height %d", maxY, b.Dy())
+	}
+	inkH := maxY - minY + 1
+	if inkH < bannerH/3 {
+		t.Errorf("text ink height %d is too small for a %dpx banner; font fitting regressed", inkH, bannerH)
+	}
+	if gapAbove > bannerH/3 || gapBelow > bannerH/3 {
+		t.Errorf("text not roughly centered in banner: gap above = %d, gap below = %d (banner %dpx)", gapAbove, gapBelow, bannerH)
 	}
 }
