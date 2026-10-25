@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"embed"
 	"fmt"
 	"image"
@@ -272,6 +273,17 @@ type stampOptions struct {
 	font              string
 }
 
+func writeEnvManifest(path string, envs map[string]string) error {
+	var buf bytes.Buffer
+	for k, v := range envs {
+		buf.WriteString(k)
+		buf.WriteByte('=')
+		buf.WriteString(v)
+		buf.WriteByte('\n')
+	}
+	return os.WriteFile(path, buf.Bytes(), 0o644)
+}
+
 func main() {
 	iconPath := os.Getenv("stamp_path_to_icons")
 	version := os.Getenv("stamp_version")
@@ -362,5 +374,17 @@ func main() {
 	}
 
 	log.Printf("Stamped %d icons.", len(filePaths))
+
+	if envmanPath := os.Getenv("BITRISE_ENV_MANIFEST_PATH"); envmanPath != "" {
+		manifest := map[string]string{
+			"stamped_icon_count": strconv.Itoa(len(filePaths)),
+			"stamped_icon_paths": strings.Join(filePaths, "\n"),
+		}
+		if err := writeEnvManifest(envmanPath, manifest); err != nil {
+			log.Printf("Could not write Bitrise outputs: %v", err)
+		}
+		log.Println("Outputs: stamped_icon_count, stamped_icon_paths")
+	}
+
 	os.Exit(0)
 }

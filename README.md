@@ -39,6 +39,13 @@ Add it to your workflow in the Bitrise Workflow Editor, or reference it directly
 
 The Step modifies the icon files in place, so run it **before** the build/archive step that consumes the icons.
 
+### Outputs
+
+| Output | Description |
+|---|---|
+| `stamped_icon_count` | Number of icons that were stamped |
+| `stamped_icon_paths` | Newline-separated list of the stamped icon file paths |
+
 ## How to build and run locally
 
 ### Installing Go
