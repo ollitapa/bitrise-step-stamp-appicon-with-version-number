@@ -64,7 +64,8 @@ func TestStampIcon(t *testing.T) {
 	}
 	out.Close()
 
-	if err := stampIcon(iconPath, "1.2", "123", "white", "#0008", ""); err != nil {
+	opts := stampOptions{version: "1.2", buildNumber: "123", fgColor: "white", bgColor: "#0008"}
+	if err := stampIcon(opts, iconPath); err != nil {
 		t.Fatalf("stampIcon failed: %v", err)
 	}
 
@@ -137,5 +138,19 @@ func TestCollectPNGs(t *testing.T) {
 	files := collectPNGs([]string{dir})
 	if len(files) != 2 {
 		t.Errorf("collectPNGs = %v; want 2 png files", files)
+	}
+}
+
+func TestRenderTemplate(t *testing.T) {
+	tests := []struct{ tpl, version, build, want string }{
+		{"%version% (%build%)", "1.2", "123", "1.2 (123)"},
+		{"Dev %version%", "1.2", "123", "Dev 1.2"},
+		{"", "1.2", "123", ""},
+		{"plain text", "1.2", "123", "plain text"},
+	}
+	for _, tt := range tests {
+		if got := renderTemplate(tt.tpl, tt.version, tt.build); got != tt.want {
+			t.Errorf("renderTemplate(%q) = %q; want %q", tt.tpl, got, tt.want)
+		}
 	}
 }

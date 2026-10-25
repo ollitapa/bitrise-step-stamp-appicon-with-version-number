@@ -128,7 +128,16 @@ func fitFace(fontInput, text string, maxWidth, maxHeight int) (font.Face, error)
 	return loadFace(fontInput, bestSize)
 }
 
-func stampIcon(path, version, buildNumber, fgColor, bgColor, fontInput string) error {
+func renderTemplate(tpl, version, buildNumber string) string {
+	replacer := strings.NewReplacer(
+		"%version%", version,
+		"%build%", buildNumber,
+		"\n", " ",
+	)
+	return replacer.Replace(tpl)
+}
+
+func stampIcon(opts stampOptions, path string) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return fmt.Errorf("could not open icon %s: %w", path, err)
@@ -145,27 +154,43 @@ func stampIcon(path, version, buildNumber, fgColor, bgColor, fontInput string) e
 	dc := gg.NewContext(width, height)
 	dc.DrawImage(imgData, 0, 0)
 
-	bannerH := int(math.Floor(float64(height) * 0.3))
+	bannerRatio := opts.bannerHeightRatio
+	if bannerRatio <= 0 || bannerRatio > 1 {
+		bannerRatio = 0.3
+	}
+	bannerH := int(math.Floor(float64(height) * bannerRatio))
 	if bannerH < 1 {
 		bannerH = 1
 	}
 
-	br, bg, bb, ba, err := parseColor(bgColor)
+	br, bg, bb, ba, err := parseColor(opts.bgColor)
 	if err != nil {
 		return err
 	}
 	dc.SetRGBA255(br, bg, bb, ba)
-	dc.DrawRectangle(0, float64(height-bannerH), float64(width), float64(bannerH))
+	var bannerY float64
+	switch opts.position {
+	case "north":
+		bannerY = 0
+	case "center":
+		bannerY = float64(height-bannerH) / 2
+	default:
+		bannerY = float64(height - bannerH)
+	}
+	dc.DrawRectangle(0, bannerY, float64(width), float64(bannerH))
 	dc.Fill()
 
-	text := "- " + version + "(" + buildNumber + ")"
-	face, err := fitFace(fontInput, text, int(float64(width)*0.9), bannerH)
+	text := opts.text
+	if text == "" {
+		text = "- " + opts.version + "(" + opts.buildNumber + ")"
+	}
+	face, err := fitFace(opts.font, text, int(float64(width)*0.9), bannerH)
 	if err != nil {
 		return err
 	}
 	defer face.Close()
 
-	fr, fgC, fb, fa, err := parseColor(fgColor)
+	fr, fgC, fb, fa, err := parseColor(opts.fgColor)
 	if err != nil {
 		return err
 	}
@@ -174,7 +199,7 @@ func stampIcon(path, version, buildNumber, fgColor, bgColor, fontInput string) e
 
 	tw, th := dc.MeasureString(text)
 	tx := (float64(width) - tw) / 2
-	ty := float64(height) - float64(bannerH) + (float64(bannerH)-th)/2
+	ty := bannerY + (float64(bannerH)-th)/2
 	dc.DrawString(text, tx, ty)
 
 	out, err := os.Create(path)
@@ -236,13 +261,45 @@ func collectPNGs(paths []string) []string {
 	return files
 }
 
+type stampOptions struct {
+	version           string
+	buildNumber       string
+	text              string
+	position          string
+	bannerHeightRatio float64
+	fgColor           string
+	bgColor           string
+	font              string
+}
+
 func main() {
 	iconPath := os.Getenv("stamp_path_to_icons")
 	version := os.Getenv("stamp_version")
 	buildNumber := os.Getenv("stamp_build_number")
+	textTemplate := os.Getenv("stamp_text")
+	position := os.Getenv("stamp_position")
+	bannerHeightRatio := 0.3
+	if v := os.Getenv("stamp_banner_height_ratio"); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			bannerHeightRatio = f
+		} else {
+			log.Printf("Could not parse stamp_banner_height_ratio %q, using 0.3.", v)
+		}
+	}
 	fgColor := os.Getenv("foreground_color")
 	bgColor := os.Getenv("background_color")
 	fontInput := os.Getenv("stamp_font")
+
+	opts := stampOptions{
+		version:           version,
+		buildNumber:       buildNumber,
+		text:              renderTemplate(textTemplate, version, buildNumber),
+		position:          position,
+		bannerHeightRatio: bannerHeightRatio,
+		fgColor:           fgColor,
+		bgColor:           bgColor,
+		font:              fontInput,
+	}
 
 	if version == "" {
 		log.Println("Version number (stamp_version) is required.")
@@ -255,6 +312,8 @@ func main() {
 
 	log.Println("Version number to stamp:", version)
 	log.Println("Build number to stamp:", buildNumber)
+	log.Println("Stamp text:", opts.text)
+	log.Println("Stamp position:", position)
 	log.Println("Foreground color is:", fgColor)
 	log.Println("Background color is:", bgColor)
 	if fontInput != "" {
@@ -296,7 +355,7 @@ func main() {
 	log.Println(filePaths)
 
 	for _, f := range filePaths {
-		if err := stampIcon(f, version, buildNumber, fgColor, bgColor, fontInput); err != nil {
+		if err := stampIcon(opts, f); err != nil {
 			log.Printf("Failed to stamp %s: %v", f, err)
 			os.Exit(1)
 		}
