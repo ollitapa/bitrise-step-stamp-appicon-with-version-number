@@ -3,11 +3,29 @@ package main
 import (
 	"image"
 	"image/png"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
+
+// testIconPath returns the path of the sample icon, whether tests run
+// from the repo root or the testing directory.
+func testIconPath(t *testing.T) string {
+	t.Helper()
+	candidates := []string{
+		filepath.Join("testing", "AppIcon", "go.png"),
+		filepath.Join("..", "testing", "AppIcon", "go.png"),
+	}
+	for _, c := range candidates {
+		if _, err := os.Stat(c); err == nil {
+			return c
+		}
+	}
+	t.Skipf("test fixture not available")
+	return ""
+}
 
 func TestParseColor(t *testing.T) {
 	tests := []struct {
@@ -44,7 +62,7 @@ func TestParseColor(t *testing.T) {
 
 func TestStampIcon(t *testing.T) {
 	dir := t.TempDir()
-	src, err := os.Open(filepath.Join("..", "testing", "AppIcon", "go.png"))
+	src, err := os.Open(testIconPath(t))
 	if err != nil {
 		t.Skipf("test fixture not available: %v", err)
 	}
@@ -187,5 +205,83 @@ func TestFitFaceFillsBanner(t *testing.T) {
 	}
 	if w := measureString(face, text); w > 525 {
 		t.Errorf("fitted text width %.1f exceeds max width 525", w)
+	}
+}
+
+func TestStampIconCentersTextInBanner(t *testing.T) {
+	dir := t.TempDir()
+	src, err := os.Open(testIconPath(t))
+	if err != nil {
+		t.Skipf("test fixture not available: %v", err)
+	}
+	imgData, _, err := image.Decode(src)
+	src.Close()
+	if err != nil {
+		t.Fatalf("could not decode fixture: %v", err)
+	}
+	iconPath := filepath.Join(dir, "icon.png")
+	out, err := os.Create(iconPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := png.Encode(out, imgData); err != nil {
+		t.Fatal(err)
+	}
+	out.Close()
+
+	opts := stampOptions{version: "1.2", buildNumber: "123", fgColor: "white", bgColor: "#0008"}
+	if err := stampIcon(opts, iconPath); err != nil {
+		t.Fatalf("stampIcon failed: %v", err)
+	}
+
+	f, err := os.Open(iconPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	stamped, _, err := image.Decode(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := stamped.Bounds()
+	bannerH := int(math.Floor(float64(b.Dy()) * 0.3))
+	bannerTop := b.Dy() - bannerH
+
+	// find rows containing bright (text) pixels in the banner
+	minY, maxY := -1, -1
+	for y := bannerTop; y < b.Dy(); y++ {
+		for x := 0; x < b.Dx(); x++ {
+			r, g, bl, _ := stamped.At(x, y).RGBA()
+			if r > 40000 && g > 40000 && bl > 40000 {
+				if minY == -1 || y < minY {
+					minY = y
+				}
+				if y > maxY {
+					maxY = y
+				}
+			}
+		}
+	}
+	if minY == -1 {
+		t.Fatalf("no text pixels found in the banner")
+	}
+	gapAbove := minY - bannerTop
+	gapBelow := b.Dy() - 1 - maxY
+	// The banner is centered on the font's ascent+descent box, but the
+	// visible ink of "1.2 (123)" does not fill that box (digits have
+	// no descenders, parens exceed cap height), so allow a reasonable
+	// asymmetry instead of pixel-exact ink centering.
+	if gapAbove < 0 {
+		t.Errorf("text spills above the banner: first text row %d < banner top %d", minY, bannerTop)
+	}
+	if gapBelow < 0 {
+		t.Errorf("text spills below the banner: last text row %d >= image height %d", maxY, b.Dy())
+	}
+	inkH := maxY - minY + 1
+	if inkH < bannerH/3 {
+		t.Errorf("text ink height %d is too small for a %dpx banner; font fitting regressed", inkH, bannerH)
+	}
+	if gapAbove > bannerH/3 || gapBelow > bannerH/3 {
+		t.Errorf("text not roughly centered in banner: gap above = %d, gap below = %d (banner %dpx)", gapAbove, gapBelow, bannerH)
 	}
 }

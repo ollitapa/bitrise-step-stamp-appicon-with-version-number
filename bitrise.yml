@@ -62,29 +62,32 @@ workflows:
             #!/bin/bash
             set -ex
             # cwd is still ./testing (set by change-workdir in the test workflow)
-            mkdir -p "${BITRISE_DEPLOY_DIR}/stamped-icons"
-            cp ./AppIcon/*.png "${BITRISE_DEPLOY_DIR}/stamped-icons/"
-            mkdir -p "${BITRISE_DEPLOY_DIR}/stamped-icons-custom"
-            cp ./AppIcon-custom/*.png "${BITRISE_DEPLOY_DIR}/stamped-icons-custom/"
+            # Copy the stamped icons to the deploy dir with prefixed
+            # names: deploy-to-bitrise-io (is_compress: false) only
+            # deploys top-level files, not subdirectories.
+            for f in ./AppIcon/*.png; do
+              cp "$f" "${BITRISE_DEPLOY_DIR}/stamped-$(basename "$f")"
+            done
+            for f in ./AppIcon-custom/*.png; do
+              cp "$f" "${BITRISE_DEPLOY_DIR}/stamped-custom-$(basename "$f")"
+            done
+    # A single deploy-to-bitrise-io step deploys BOTH stamped icon
+    # variants and sends the exported test report to Test Reports.
+    # Multiple deploy-to-bitrise-io steps would upload the exported
+    # test results once per step, duplicating the test run on the
+    # Tests tab.
     - deploy-to-bitrise-io:
         run_if: .IsCI
         inputs:
-        - deploy_path: ${BITRISE_DEPLOY_DIR}/stamped-icons
-        - is_compress: false
-        - notify_user_groups: ""
-    - deploy-to-bitrise-io:
-        title: Deploy stamped custom icons to bitrise.io
-        run_if: .IsCI
-        inputs:
-        - deploy_path: ${BITRISE_DEPLOY_DIR}/stamped-icons-custom
+        - deploy_path: ${BITRISE_DEPLOY_DIR}
         - is_compress: false
         - notify_user_groups: ""
     after_run:
     - annotate-build
 
-  # Static checks and unit tests of the step's Go code: build, vet,
-  # gofmt verification, and `go test`. Runs on every CI build (push
-  # and pull request) and can also be run locally.
+  # Static checks and unit tests of the step's Go code, with the test
+  # results exported in JUnit XML so they show up on the build's
+  # Tests tab via the custom-test-results-export step.
   lint-and-test:
     steps:
     - script:
@@ -93,10 +96,27 @@ workflows:
         - content: |-
             #!/bin/bash
             set -ex
+            # Print the Go version in the logs; the go directive in go.mod
+            # makes the Go toolchain auto-download the required version
+            # on stacks where an older Go is installed.
+            go version
             go build ./...
             go vet ./...
             test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
-            go test ./... -v
+            # Run the unit tests with JUnit XML output for Test Reports,
+            # via go run so no installed binary needs to be on PATH.
+            # NOTE: BITRISE_TEST_RESULT_DIR is a PER-STEP directory, so
+            # the XML is written to a fixed path that the export step
+            # below can also see.
+            go run gotest.tools/gotestsum@v1.13.0 --junitfile "${BITRISE_SOURCE_DIR}/unit-tests.xml" -- ./...
+    # Exports the JUnit XML so that the deploy-to-bitrise-io step can
+    # send it to the build's Test Reports (Tests tab). Skipped locally.
+    - custom-test-results-export:
+        run_if: .IsCI
+        inputs:
+        - test_name: Unit tests
+        - base_path: $BITRISE_SOURCE_DIR/unit-tests.xml
+        - search_pattern: "*"
 
   # Add a build annotation pointing at the stamped-icon verification
   # artifacts, so the stamp result can be checked directly on the
@@ -117,8 +137,8 @@ workflows:
 
             This build stamped the sample icons with the step's default format and with a custom template:
 
-            - Default stamp (\`- 1.2(123)\`): **stamped-icons** artifact on the [Artifacts tab](${BITRISE_BUILD_URL}?tab=artifacts)
-            - Custom stamp (\`DEV 1.2 (123)\`, north banner): **stamped-icons-custom** artifact
+            - Default stamp (\`1.2 (123)\`): **stamped-go.png** artifact on the [Artifacts tab](${BITRISE_BUILD_URL}?tab=artifacts)
+            - Custom stamp (\`DEV 1.2 (123)\`, north banner): **stamped-custom-go.png** artifact
 
             Download the artifacts to visually confirm the stamp rendering before merging." --style info
 
@@ -139,7 +159,7 @@ workflows:
     - path::$BITRISE_SOURCE_DIR:
         title: Step Test
         description: |-
-          Stamp test icon with version 1.2(123) with default colors.
+          Stamp test icon with version 1.2 (123) with default colors.
         run_if: true
         inputs:
         - stamp_path_to_icons: "./AppIcon"
