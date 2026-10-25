@@ -36,17 +36,18 @@ workflows:
         - content: |-
             #!/bin/bash
             set -ex
-            # cwd is still ./testing (set by change-workdir in the test workflow).
-            # The test workflow already stamped ./AppIcon with the default
-            # banner (that is the default-format artifact). Extract the
-            # pristine icons from git for the custom variant instead of
-            # copying the stamped ones: otherwise the custom stamp would
-            # be rendered on top of the default one.
+            # cwd is still ./testing (set by change-workdir in the test
+            # workflow), which also repointed BITRISE_SOURCE_DIR, so do
+            # NOT cd anywhere: glob the stamped ./AppIcon for the file
+            # names and pull the pristine content from git with the
+            # HEAD:./ relative-path syntax (relative to the current
+            # directory). Copying the stamped files would render the
+            # custom banner on top of the default one.
             rm -rf ./AppIcon-custom
             mkdir -p ./AppIcon-custom
-            cd "${BITRISE_SOURCE_DIR}"
-            for f in testing/AppIcon/*.png; do
-              git show "HEAD:${f}" > "testing/AppIcon-custom/$(basename "$f")"
+            for f in ./AppIcon/*.png; do
+              name="$(basename "$f")"
+              git show "HEAD:./AppIcon/${name}" > "./AppIcon-custom/${name}"
             done
     - path::$BITRISE_SOURCE_DIR:
         title: Step Test (custom template)
