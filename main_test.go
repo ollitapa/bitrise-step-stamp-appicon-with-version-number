@@ -229,7 +229,8 @@ func TestStampIconCentersTextInBanner(t *testing.T) {
 	}
 	out.Close()
 
-	if err := stampIcon(iconPath, "1.2", "123", "white", "#0008", ""); err != nil {
+	opts := stampOptions{version: "1.2", buildNumber: "123", fgColor: "white", bgColor: "#0008"}
+	if err := stampIcon(opts, iconPath); err != nil {
 		t.Fatalf("stampIcon failed: %v", err)
 	}
 
@@ -267,7 +268,7 @@ func TestStampIconCentersTextInBanner(t *testing.T) {
 	gapAbove := minY - bannerTop
 	gapBelow := b.Dy() - 1 - maxY
 	// The banner is centered on the font's ascent+descent box, but the
-	// visible ink of "- 1.2(123)" does not fill that box (digits have
+	// visible ink of "1.2 (123)" does not fill that box (digits have
 	// no descenders, parens exceed cap height), so allow a reasonable
 	// asymmetry instead of pixel-exact ink centering.
 	if gapAbove < 0 {

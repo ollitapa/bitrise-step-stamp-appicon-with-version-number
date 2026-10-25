@@ -187,7 +187,7 @@ func stampIcon(opts stampOptions, path string) error {
 
 	text := opts.text
 	if text == "" {
-		text = "- " + opts.version + "(" + opts.buildNumber + ")"
+		text = opts.version + " (" + opts.buildNumber + ")"
 	}
 	face, err := fitFace(opts.font, text, int(float64(width)*0.9), bannerH)
 	if err != nil {
