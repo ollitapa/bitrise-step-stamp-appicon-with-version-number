@@ -100,11 +100,9 @@ workflows:
             go build ./...
             go vet ./...
             test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
-            # Install gotestsum and run the unit tests with JUnit XML
-            # output for Test Reports. Call it via $(go env GOPATH)/bin
-            # because that directory is not on PATH on Bitrise stacks.
-            go install gotest.tools/gotestsum@v1.13.0
-            "$(go env GOPATH)/bin/gotestsum" --junitfile "${BITRISE_TEST_RESULT_DIR:-$PWD}/unit-tests.xml" -- ./...
+            # Run the unit tests with JUnit XML output for Test Reports,
+            # via go run so no installed binary needs to be on PATH.
+            go run gotest.tools/gotestsum@v1.13.0 --junitfile "${BITRISE_TEST_RESULT_DIR:-$PWD}/unit-tests.xml" -- ./...
     # Exports the JUnit XML so that the deploy-to-bitrise-io step can
     # send it to the build's Test Reports (Tests tab). Skipped locally
     # where BITRISE_TEST_RESULT_DIR is not set.
