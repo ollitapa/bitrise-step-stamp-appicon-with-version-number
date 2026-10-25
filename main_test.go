@@ -3,6 +3,7 @@ package main
 import (
 	"image"
 	"image/png"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
@@ -187,5 +188,76 @@ func TestFitFaceFillsBanner(t *testing.T) {
 	}
 	if w := measureString(face, text); w > 525 {
 		t.Errorf("fitted text width %.1f exceeds max width 525", w)
+	}
+}
+
+func TestStampIconCentersTextInBanner(t *testing.T) {
+	dir := t.TempDir()
+	src, err := os.Open(filepath.Join("..", "testing", "AppIcon", "go.png"))
+	if err != nil {
+		t.Skipf("test fixture not available: %v", err)
+	}
+	imgData, _, err := image.Decode(src)
+	src.Close()
+	if err != nil {
+		t.Fatalf("could not decode fixture: %v", err)
+	}
+	iconPath := filepath.Join(dir, "icon.png")
+	out, err := os.Create(iconPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := png.Encode(out, imgData); err != nil {
+		t.Fatal(err)
+	}
+	out.Close()
+
+	if err := stampIcon(iconPath, "1.2", "123", "white", "#0008", ""); err != nil {
+		t.Fatalf("stampIcon failed: %v", err)
+	}
+
+	f, err := os.Open(iconPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	stamped, _, err := image.Decode(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := stamped.Bounds()
+	bannerH := int(math.Floor(float64(b.Dy()) * 0.3))
+	bannerTop := b.Dy() - bannerH
+
+	// find rows containing bright (text) pixels in the banner
+	minY, maxY := -1, -1
+	for y := bannerTop; y < b.Dy(); y++ {
+		for x := 0; x < b.Dx(); x++ {
+			r, g, bl, _ := stamped.At(x, y).RGBA()
+			if r > 40000 && g > 40000 && bl > 40000 {
+				if minY == -1 || y < minY {
+					minY = y
+				}
+				if y > maxY {
+					maxY = y
+				}
+			}
+		}
+	}
+	if minY == -1 {
+		t.Fatalf("no text pixels found in the banner")
+	}
+	gapAbove := minY - bannerTop
+	gapBelow := b.Dy() - 1 - maxY
+	diff := gapAbove - gapBelow
+	if diff < 0 {
+		diff = -diff
+	}
+	if diff > 3 {
+		t.Errorf("text not vertically centered: gap above banner top = %d, gap below = %d (diff %d > 3)", gapAbove, gapBelow, diff)
+	}
+	// text must not spill above the banner
+	if minY < bannerTop {
+		t.Errorf("text spills above the banner: first text row %d < banner top %d", minY, bannerTop)
 	}
 }

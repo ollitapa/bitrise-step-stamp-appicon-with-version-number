@@ -82,9 +82,9 @@ workflows:
     after_run:
     - annotate-build
 
-  # Static checks and unit tests of the step's Go code: build, vet,
-  # gofmt verification, and `go test`. Runs on every CI build (push
-  # and pull request) and can also be run locally.
+  # Static checks and unit tests of the step's Go code, with the test
+  # results exported in JUnit XML so they show up on the build's
+  # Tests tab via the custom-test-results-export step.
   lint-and-test:
     steps:
     - script:
@@ -96,7 +96,19 @@ workflows:
             go build ./...
             go vet ./...
             test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
-            go test ./... -v
+            # Install gotestsum once (cached by module cache) and run
+            # the unit tests with JUnit XML output for Test Reports.
+            go install gotest.tools/gotestsum@v1.12.2
+            gotestsum --junitfile "${BITRISE_TEST_RESULT_DIR:-$PWD}/unit-tests.xml" -- ./...
+    # Exports the JUnit XML so that the deploy-to-bitrise-io step can
+    # send it to the build's Test Reports (Tests tab). Skipped locally
+    # where BITRISE_TEST_RESULT_DIR is not set.
+    - custom-test-results-export:
+        run_if: '{{getenv "BITRISE_TEST_RESULT_DIR" | ne ""}}'
+        inputs:
+        - test_name: Unit tests
+        - base_path: $BITRISE_TEST_RESULT_DIR
+        - search_pattern: unit-tests.xml
 
   # Add a build annotation pointing at the stamped-icon verification
   # artifacts, so the stamp result can be checked directly on the

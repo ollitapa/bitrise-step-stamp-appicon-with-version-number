@@ -202,9 +202,18 @@ func stampIcon(opts stampOptions, path string) error {
 	dc.SetRGBA255(fr, fgC, fb, fa)
 	dc.SetFontFace(face)
 
-	tw, th := dc.MeasureString(text)
+	// gg.DrawString takes the BASELINE y coordinate, so center the text
+	// using the font's actual ascent/descent instead of treating the
+	// measured height as the top of the text block.
+	metrics := face.Metrics()
+	ascent := float64(metrics.Ascent) / 64
+	descent := float64(metrics.Descent) / 64
+	glyphH := ascent + descent
+
+	tw, _ := dc.MeasureString(text)
 	tx := (float64(width) - tw) / 2
-	ty := bannerY + (float64(bannerH)-th)/2
+	// Center the baseline so that ascent/descent are balanced in the banner.
+	ty := bannerY + (float64(bannerH)-glyphH)/2 + ascent
 	dc.DrawString(text, tx, ty)
 
 	out, err := os.Create(path)
