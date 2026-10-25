@@ -102,16 +102,18 @@ workflows:
             test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
             # Run the unit tests with JUnit XML output for Test Reports,
             # via go run so no installed binary needs to be on PATH.
-            go run gotest.tools/gotestsum@v1.13.0 --junitfile "${BITRISE_TEST_RESULT_DIR:-$PWD}/unit-tests.xml" -- ./...
+            # NOTE: BITRISE_TEST_RESULT_DIR is a PER-STEP directory, so
+            # the XML is written to a fixed path that the export step
+            # below can also see.
+            go run gotest.tools/gotestsum@v1.13.0 --junitfile "${BITRISE_SOURCE_DIR}/unit-tests.xml" -- ./...
     # Exports the JUnit XML so that the deploy-to-bitrise-io step can
-    # send it to the build's Test Reports (Tests tab). Skipped locally
-    # where BITRISE_TEST_RESULT_DIR is not set.
+    # send it to the build's Test Reports (Tests tab). Skipped locally.
     - custom-test-results-export:
-        run_if: '{{getenv "BITRISE_TEST_RESULT_DIR" | ne ""}}'
+        run_if: .IsCI
         inputs:
         - test_name: Unit tests
-        - base_path: $BITRISE_TEST_RESULT_DIR
-        - search_pattern: unit-tests.xml
+        - base_path: $BITRISE_SOURCE_DIR/unit-tests.xml
+        - search_pattern: "*"
 
   # Add a build annotation pointing at the stamped-icon verification
   # artifacts, so the stamp result can be checked directly on the
