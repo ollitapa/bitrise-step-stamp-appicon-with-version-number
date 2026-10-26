@@ -159,7 +159,8 @@ workflows:
         - content: |-
             #!/bin/bash
             set -ex
-            stepman audit --step-yml "${BITRISE_SOURCE_DIR}/step.yml"
+            repo_root="$(git rev-parse --show-toplevel)"
+            stepman audit --step-yml "${repo_root}/step.yml"
 
   # ----------------------------------------------------------------
   # --- workflow to tag a release with the step version
@@ -177,7 +178,8 @@ workflows:
         - content: |-
             #!/bin/bash
             set -ex
-            step_version="$(grep -m1 '^version:' "${BITRISE_SOURCE_DIR}/step.yml" | awk '{print $2}')"
+            repo_root="$(git rev-parse --show-toplevel)"
+            step_version="$(grep -m1 '^version:' "${repo_root}/step.yml" | awk '{print $2}')"
             if [ -z "$step_version" ]; then
               step_version="${BITRISE_STEP_VERSION}"
             fi
@@ -215,7 +217,8 @@ workflows:
         - content: |-
             #!/bin/bash
             set -ex
-            step_version="$(grep -m1 '^version:' "${BITRISE_SOURCE_DIR}/step.yml" | awk '{print $2}')"
+            repo_root="$(git rev-parse --show-toplevel)"
+            step_version="$(grep -m1 '^version:' "${repo_root}/step.yml" | awk '{print $2}')"
             if [ -z "$step_version" ]; then
               step_version="${BITRISE_STEP_VERSION}"
             fi
@@ -229,8 +232,8 @@ workflows:
               exit 0
             fi
             notes_file="$(mktemp)"
-            if [ -f "${BITRISE_SOURCE_DIR}/RELEASE_NOTES.md" ]; then
-              cp "${BITRISE_SOURCE_DIR}/RELEASE_NOTES.md" "${notes_file}"
+            if [ -f "${repo_root}/RELEASE_NOTES.md" ]; then
+              cp "${repo_root}/RELEASE_NOTES.md" "${notes_file}"
             else
               echo "Release of ${step_version}" > "${notes_file}"
             fi
@@ -242,10 +245,11 @@ workflows:
   release-this-step:
     description: |-
       One-call release flow for this step, meant to be run locally
-      with the Bitrise CLI. Runs `audit-this-step`, `test`,
-      `tag-this-step`, `github-release-this-step` and `share-this-step`
-      in order, using the version from `step.yml` as the single source
-      of truth.
+      with the Bitrise CLI. Runs `tag-this-step`,
+      `github-release-this-step` and `share-this-step` (which audits
+      `step.yml` first) in order, using the version from `step.yml` as
+      the single source of truth. The step test itself runs via the
+      `ci` workflow on every push and pull request.
 
       Setup:
 
@@ -259,10 +263,11 @@ workflows:
       After the share process finishes, open a Pull Request in the
       official Bitrise StepLib repository as described in the guide
       printed at the end of the process.
-    # share-this-step runs audit-this-step itself in before_run, so the
-    # audit is not repeated here.
+    # The step test already runs on every push/PR via the ci workflow,
+    # and its change-workdir side effects broke the release scripts'
+    # relative paths, so the test is not part of the release flow.
+    # share-this-step runs audit-this-step itself in before_run.
     before_run:
-    - test
     - tag-this-step
     - github-release-this-step
     - share-this-step
@@ -303,7 +308,8 @@ workflows:
         - content: |-
             #!/bin/bash
             set -ex
-            step_version="$(grep -m1 '^version:' "${BITRISE_SOURCE_DIR}/step.yml" | awk '{print $2}')"
+            repo_root="$(git rev-parse --show-toplevel)"
+            step_version="$(grep -m1 '^version:' "${repo_root}/step.yml" | awk '{print $2}')"
             if [ -z "$step_version" ] && [ -n "$BITRISE_STEP_VERSION" ]; then
               step_version="${BITRISE_STEP_VERSION}"
             fi
