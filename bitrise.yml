@@ -159,7 +159,7 @@ workflows:
         - content: |-
             #!/bin/bash
             set -ex
-            stepman audit --step-yml ./step.yml
+            stepman audit --step-yml "${BITRISE_SOURCE_DIR}/step.yml"
 
   # ----------------------------------------------------------------
   # --- workflow to tag a release with the step version
@@ -177,7 +177,7 @@ workflows:
         - content: |-
             #!/bin/bash
             set -ex
-            step_version="$(grep -m1 '^version:' step.yml | awk '{print $2}')"
+            step_version="$(grep -m1 '^version:' "${BITRISE_SOURCE_DIR}/step.yml" | awk '{print $2}')"
             if [ -z "$step_version" ]; then
               step_version="${BITRISE_STEP_VERSION}"
             fi
@@ -215,7 +215,7 @@ workflows:
         - content: |-
             #!/bin/bash
             set -ex
-            step_version="$(grep -m1 '^version:' step.yml | awk '{print $2}')"
+            step_version="$(grep -m1 '^version:' "${BITRISE_SOURCE_DIR}/step.yml" | awk '{print $2}')"
             if [ -z "$step_version" ]; then
               step_version="${BITRISE_STEP_VERSION}"
             fi
@@ -229,8 +229,8 @@ workflows:
               exit 0
             fi
             notes_file="$(mktemp)"
-            if [ -f RELEASE_NOTES.md ]; then
-              cp RELEASE_NOTES.md "${notes_file}"
+            if [ -f "${BITRISE_SOURCE_DIR}/RELEASE_NOTES.md" ]; then
+              cp "${BITRISE_SOURCE_DIR}/RELEASE_NOTES.md" "${notes_file}"
             else
               echo "Release of ${step_version}" > "${notes_file}"
             fi
@@ -303,7 +303,7 @@ workflows:
         - content: |-
             #!/bin/bash
             set -ex
-            step_version="$(grep -m1 '^version:' step.yml | awk '{print $2}')"
+            step_version="$(grep -m1 '^version:' "${BITRISE_SOURCE_DIR}/step.yml" | awk '{print $2}')"
             if [ -z "$step_version" ] && [ -n "$BITRISE_STEP_VERSION" ]; then
               step_version="${BITRISE_STEP_VERSION}"
             fi
