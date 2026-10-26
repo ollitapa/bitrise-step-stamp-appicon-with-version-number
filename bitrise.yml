@@ -30,16 +30,25 @@ workflows:
   deploy-test-artifacts:
     steps:
     - script:
-        title: Stamp a second icon variant with custom template and position
+        title: Prepare a pristine copy of the test icons
         run_if: .IsCI
         inputs:
         - content: |-
             #!/bin/bash
             set -ex
-            # cwd is still ./testing (set by change-workdir in the test workflow)
+            # cwd is still ./testing (set by change-workdir in the test
+            # workflow), which also repointed BITRISE_SOURCE_DIR, so do
+            # NOT cd anywhere: glob the stamped ./AppIcon for the file
+            # names and pull the pristine content from git with the
+            # HEAD:./ relative-path syntax (relative to the current
+            # directory). Copying the stamped files would render the
+            # custom banner on top of the default one.
             rm -rf ./AppIcon-custom
             mkdir -p ./AppIcon-custom
-            cp ./AppIcon/*.png ./AppIcon-custom/
+            for f in ./AppIcon/*.png; do
+              name="$(basename "$f")"
+              git show "HEAD:./AppIcon/${name}" > "./AppIcon-custom/${name}"
+            done
     - path::$BITRISE_SOURCE_DIR:
         title: Step Test (custom template)
         description: |-
@@ -250,8 +259,9 @@ workflows:
       After the share process finishes, open a Pull Request in the
       official Bitrise StepLib repository as described in the guide
       printed at the end of the process.
+    # share-this-step runs audit-this-step itself in before_run, so the
+    # audit is not repeated here.
     before_run:
-    - audit-this-step
     - test
     - tag-this-step
     - github-release-this-step
@@ -261,7 +271,8 @@ workflows:
     envs:
     - MY_STEPLIB_REPO_FORK_GIT_URL: https://github.com/ollitapa/bitrise-steplib
     - BITRISE_STEP_ID: bitrise-step-stamp-appicon-with-version-number
-    - BITRISE_STEP_VERSION: "1.2.0"
+    # BITRISE_STEP_VERSION is resolved from step.yml in the share script
+    # below, so it can never drift from the released version.
     - BITRISE_STEP_GIT_CLONE_URL: https://github.com/ollitapa/bitrise-step-stamp-appicon-with-version-number.git
     description: |-
       If this is the first time you try to share a Step you should
@@ -292,8 +303,17 @@ workflows:
         - content: |-
             #!/bin/bash
             set -ex
+            step_version="$(grep -m1 '^version:' step.yml | awk '{print $2}')"
+            if [ -z "$step_version" ] && [ -n "$BITRISE_STEP_VERSION" ]; then
+              step_version="${BITRISE_STEP_VERSION}"
+            fi
+            if [ -z "$step_version" ]; then
+              echo "Could not read version from step.yml or BITRISE_STEP_VERSION!"
+              exit 1
+            fi
+            echo "Sharing step version: ${step_version}"
             bitrise share start -c "${MY_STEPLIB_REPO_FORK_GIT_URL}"
-            bitrise share create --stepid "${BITRISE_STEP_ID}" --tag "${BITRISE_STEP_VERSION}" --git "${BITRISE_STEP_GIT_CLONE_URL}"
+            bitrise share create --stepid "${BITRISE_STEP_ID}" --tag "${step_version}" --git "${BITRISE_STEP_GIT_CLONE_URL}"
             bitrise share finish
 
 meta:
