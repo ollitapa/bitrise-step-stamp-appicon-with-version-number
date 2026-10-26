@@ -82,8 +82,6 @@ workflows:
         - deploy_path: ${BITRISE_DEPLOY_DIR}
         - is_compress: false
         - notify_user_groups: ""
-    after_run:
-    - annotate-build
 
   # Static checks and unit tests of the step's Go code, with the test
   # results exported in JUnit XML so they show up on the build's
@@ -118,29 +116,6 @@ workflows:
         - base_path: $BITRISE_SOURCE_DIR/unit-tests.xml
         - search_pattern: "*"
 
-  # Add a build annotation pointing at the stamped-icon verification
-  # artifacts, so the stamp result can be checked directly on the
-  # build details page without any token configuration. Uses the
-  # built-in Bitrise annotations plugin; skipped in local runs (no
-  # bitrise.io build to annotate).
-  annotate-build:
-    steps:
-    - script:
-        title: Annotate build with stamped-icon verification info
-        run_if: .IsCI
-        inputs:
-        - content: |-
-            #!/bin/bash
-            set -ex
-            bitrise plugin install https://github.com/bitrise-io/bitrise-plugins-annotations.git
-            bitrise :annotations annotate "**Stamped icons are ready to verify.**
-
-            This build stamped the sample icons with the step's default format and with a custom template:
-
-            - Default stamp (\`1.2 (123)\`): **stamped-go.png** artifact on the [Artifacts tab](${BITRISE_BUILD_URL}?tab=artifacts)
-            - Custom stamp (\`DEV 1.2 (123)\`, north banner): **stamped-custom-go.png** artifact
-
-            Download the artifacts to visually confirm the stamp rendering before merging." --style info
 
   # Local step test: run with `bitrise run test` from the repo root.
   test:
